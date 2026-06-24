@@ -429,7 +429,7 @@ function freshState() {
     const rung = ladders[cat][levels[cat] - 1];
     movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0 };
   }
-  return { version: 2, ladders, movements, log: [], activeDraft: null, sessionsSinceDeload: 0, createdAt: Date.now() };
+  return { version: 2, ladders, movements, log: [], activeDraft: null, sessionsSinceDeload: 0, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
 }
 function migrate(s) {
   if (!s) return freshState();
@@ -441,7 +441,7 @@ function migrate(s) {
     const rung = ladders[cat][Math.max(0, Math.min(ladders[cat].length - 1, (old.level || 1) - 1))];
     movements[cat] = { exId: rung.id, target: old.target ?? rangeFor(cat, rung.type).min, stage: 0, holds: old.holds || 0 };
   }
-  return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sessionsSinceDeload: 0, createdAt: s.createdAt || Date.now() };
+  return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sessionsSinceDeload: s.sessionsSinceDeload || 0, sheetUrl: s.sheetUrl || "", sheetToken: s.sheetToken || "", createdAt: s.createdAt || Date.now() };
 }
 let _audio = null;
 function unlockAudio() {
@@ -568,11 +568,13 @@ function App() {
   const [exportText, setExportText] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [editCat, setEditCat] = useState(null);
+  const [syncDraft, setSyncDraft] = useState({ url: "", token: "" });
   useEffect(() => {
     (async () => {
       let s = migrate(await loadState());
       await saveState(s);
       setData(s);
+      setSyncDraft({ url: s.sheetUrl || "", token: s.sheetToken || "" });
       if (s.activeDraft) {
         setDraft(s.activeDraft.sets);
         setFeel(s.activeDraft.feel || defaultFeel());
@@ -628,6 +630,7 @@ function App() {
     }
     const record = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), type: "Full Body", items };
     persist({ ...data, movements: moves, log: [...data.log, record], activeDraft: null, sessionsSinceDeload: (data.sessionsSinceDeload || 0) + 1 });
+    pushToSheet([record]);
     setSummary(items);
     setPhase("done");
   }
@@ -695,6 +698,18 @@ function App() {
     } catch {
     }
   }
+  function saveSync() {
+    persist({ ...data, sheetUrl: syncDraft.url.trim(), sheetToken: syncDraft.token.trim() });
+  }
+  function pushToSheet(sessions) {
+    const url = (data.sheetUrl || "").trim();
+    if (!url || !sessions.length) return;
+    const payload = { token: data.sheetToken || "", sessions: sessions.map((s) => ({ id: s.id, date: s.date, items: s.items.map((it) => ({ movement: META[it.cat].name, exercise: it.name, stage: STAGES[it.stage || 0].key, measure: it.exType === "hold" ? "sec" : "reps", feel: it.feel, result: it.result, sets: it.sets })) })) };
+    try {
+      fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    } catch {
+    }
+  }
   if (!data) return /* @__PURE__ */ React.createElement("div", { className: "boot" }, "Loading your training\u2026", /* @__PURE__ */ React.createElement("style", null, CSS));
   const deloadDue = (data.sessionsSinceDeload || 0) >= DELOAD_EVERY;
   function MovementCard({ cat, lead }) {
@@ -713,7 +728,7 @@ function App() {
   }
   function renderSummary() {
     const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder" };
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Session saved", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "How it adjusted"))), summary.map((it) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + it.result, key: it.cat }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, META[it.cat].name), /* @__PURE__ */ React.createElement("div", { className: "sum-sets" }, it.sets.join(" \xB7 "), it.exType === "hold" ? "s" : " reps", " \xB7 ", it.feel)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[it.result]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "intensified" ? it.stageLabel : it.name)))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: startNext }, "Start next session"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setView("progress") }, "See progress"));
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Session saved", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "How it adjusted"))), summary.map((it) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + it.result, key: it.cat }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, META[it.cat].name), /* @__PURE__ */ React.createElement("div", { className: "sum-sets" }, it.sets.join(" \xB7 "), it.exType === "hold" ? "s" : " reps", " \xB7 ", it.feel)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[it.result]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "intensified" ? it.stageLabel : it.name)))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: startNext }, "Start next session"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setView("progress") }, "See progress"), data.sheetUrl && /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Sent to your Sheet."));
   }
   function renderProgress() {
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Progress", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Ladders, trends & overrides"))), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
@@ -747,7 +762,7 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " session", data.log.length === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 10\u201320s. One step per session, so under-leveled movements still climb fast."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
       setView("editor");
       setEditCat(null);
-    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Deload."), " ", data.sessionsSinceDeload, " session", data.sessionsSinceDeload === 1 ? "" : "s", " since your last easy week; a prompt appears every ", DELOAD_EVERY, ". ", deloadDue ? "One's due now." : "", " ", /* @__PURE__ */ React.createElement("button", { className: "inline-btn", onClick: ackDeload }, "Mark deload taken")), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
+    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Deload."), " ", data.sessionsSinceDeload, " session", data.sessionsSinceDeload === 1 ? "" : "s", " since your last easy week; a prompt appears every ", DELOAD_EVERY, ". ", deloadDue ? "One's due now." : "", " ", /* @__PURE__ */ React.createElement("button", { className: "inline-btn", onClick: ackDeload }, "Mark deload taken")), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
       const s = freshState();
       persist(s);
       setDraft(freshDraft(s));
@@ -874,6 +889,7 @@ const CSS = `
 .export-box{margin-top:10px}
 .eb-label{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px}
 .export-box textarea{width:100%;height:130px;background:#10141a;color:var(--chalk);border:1px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:11px;padding:10px}
+.sync-in{width:100%;background:#10141a;color:var(--chalk);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--body);font-size:13px;margin-top:8px}
 .reset-confirm{margin-top:12px;border:1px solid #5a3a36;border-radius:12px;padding:14px;font-size:13px;color:var(--chalk)}
 .reset-confirm>div{display:flex;gap:8px;margin-top:10px}
 .reset-confirm .btn{margin-top:0}
