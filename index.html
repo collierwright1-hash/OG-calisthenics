@@ -325,7 +325,7 @@ const DEFAULTS = {
   verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chin-ups|reps", "Wide Pull-ups|reps", "L-sit Pull-ups|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "One Arm Pull-ups|reps", "One Arm Chin-ups|reps"],
   hspu: ["Pike Plank Hold|hold", "Pike Push-up Negatives|reps", "Bent Arm Pike Holds|hold", "Pike Push-ups|reps", "Elevated Pike Push-ups|reps", "High Box Pike Push-ups|reps", "Wall HSPU (Chest to Wall)|reps", "Wall HSPU (Stomach to Wall)|reps", "Free HSPU (Partial ROM)|reps", "Free HSPU (Full ROM)|reps", "Ring Handstand Push-ups|reps", "90\xB0 Push-ups|reps", "One Arm HSPU Progression|reps"],
   horizontalPull: ["Inverted Rows (high)|reps", "Inverted Rows (mid)|reps", "Inverted Rows (low)|reps", "Ring Rows (feet on floor)|reps", "Ring Rows (feet elevated)|reps", "Wide Rows|reps", "Archer Rows|reps", "Tuck Front Lever|hold", "Advanced Tuck Front Lever|hold", "Tuck Front Lever Rows|reps", "Straddle Front Lever|hold", "Full Front Lever|hold", "Front Lever Rows|reps", "One Arm Front Lever|hold"],
-  planche: ["Wall Planche Lean|hold", "Floor Planche Lean|hold", "Plank to Planche Lean|reps", "Frog Stand|hold", "Pseudo Planche Push-ups|reps", "Pseudo Tuck Planche|hold", "Tuck Planche|hold", "Advanced Tuck Planche|hold", "Tuck Planche Push-ups|reps", "Straddle Planche|hold", "Straddle Planche Push-ups|reps", "Half Lay Planche|hold", "Full Planche|hold", "Full Planche Push-ups|reps", "Planche Press to Handstand|reps"],
+  planche: ["Wall Planche Lean|hold", "Floor Planche Lean|hold", "Plank to Planche Lean|reps", "Frog Stand|hold", "Pseudo Planche Push-ups|reps", "Pseudo Tuck Planche|hold", "Tuck Planche|hold", "Advanced Tuck Planche|hold", "Straddle Planche|hold", "Tuck Planche Push-ups|reps", "Half Lay Planche|hold", "Straddle Planche Push-ups|reps", "Full Planche|hold", "Full Planche Push-ups|reps", "Planche Press to Handstand|reps"],
   lsit: ["Foot Supported L-sit|hold", "One Leg L-sit|hold", "Tuck L-sit|hold", "L-sit (bent knees)|hold", "L-sit (full)|hold", "L-sit Pulls|reps", "V-sit|hold", "Manna Progression|hold", "Advanced Manna|hold"],
   pistol: ["Assisted Pistol (Band)|reps", "Box Pistol Squat|reps", "Pistol Negatives|reps", "Heel-Elevated Pistol|reps", "Pistol Squat|reps", "Pistol Squat (elevated)|reps", "Weighted Pistol Squat|reps", "Jump Pistol Squat|reps", "Shrimp Squat|reps", "Advanced Shrimp Squat|reps"],
   posterior: ["Glute Bridges|reps", "Single Leg Glute Bridge|reps", "Hip Hinge (BW)|reps", "Single-Leg Romanian Deadlift (BW)|reps", "Nordic Curl Negatives|reps", "Band Assisted Nordic Curls (heavy)|reps", "Band Assisted Nordic Curls (light)|reps", "Nordic Curls (partial)|reps", "Nordic Curls (full)|reps", "Weighted Nordic Curls|reps", "Single Leg Nordic Negatives|reps", "Single Leg Nordic Curls|reps"]
@@ -344,6 +344,10 @@ const BLOCK2 = ["lsit", "pistol", "posterior"];
 const ORDER = [...PAIRS.flat(), ...BLOCK2];
 const SETS = 3;
 const DELOAD_EVERY = 12;
+const DELOAD_SETS = 2;
+const REGRESS_AFTER = 2;
+const PREP = 3;
+const LAYOFF_DAYS = 7;
 const STAGES = [
   { key: "standard", label: null },
   { key: "eccentric", label: "Slow eccentric \xB7 3s lowering" },
@@ -357,7 +361,7 @@ const FLOW_POOL = {
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
 function rangeFor(cat, type) {
-  if (type === "hold") return { min: 10, max: 20, step: 2, unit: "sec" };
+  if (type === "hold") return { min: 8, max: 15, step: 1, unit: "sec" };
   const endurance = cat === "pistol" || cat === "posterior";
   return endurance ? { min: 8, max: 12, step: 1, unit: "reps" } : { min: 5, max: 8, step: 1, unit: "reps" };
 }
@@ -385,7 +389,8 @@ function autoreg(data, cat, sets, feel) {
   const isReps = rung.type !== "hold";
   const lastStage = STAGES.length - 1;
   const atMax = worst >= r.max;
-  const base = { rungName: rung.name, level: index + 1, stageWas: mv.stage || 0, exType: rung.type };
+  const curMiss = mv.misses || 0;
+  const base = { rungName: rung.name, level: index + 1, stageWas: mv.stage || 0, exType: rung.type, misses: 0 };
   if (atMax && feel === "grindy")
     return { ...base, result: "consolidate", exId: mv.exId, stage: mv.stage || 0, target: r.max };
   if (atMax) {
@@ -404,22 +409,98 @@ function autoreg(data, cat, sets, feel) {
     const bump = feel === "easy" ? 2 : 1;
     return { ...base, result: "progressed", exId: mv.exId, stage: mv.stage || 0, target: Math.min(r.max, worst + bump) };
   }
+  if (worst < r.min) {
+    const misses = curMiss + 1;
+    if (misses >= REGRESS_AFTER) {
+      if ((mv.stage || 0) > 0) {
+        const ns = (mv.stage || 0) - 1;
+        return { ...base, result: "regressed", exId: mv.exId, stage: ns, target: r.min, regressTo: rung.name + " \xB7 " + (STAGES[ns].label || "standard"), misses: 0 };
+      }
+      if (index > 0) {
+        const prev = ladder[index - 1];
+        return { ...base, result: "regressed", exId: prev.id, stage: 0, target: rangeFor(cat, prev.type).min, regressTo: prev.name, misses: 0 };
+      }
+      return { ...base, result: "held", exId: mv.exId, stage: mv.stage || 0, target: r.min, misses: REGRESS_AFTER };
+    }
+    return { ...base, result: "held", exId: mv.exId, stage: mv.stage || 0, target: mv.target, misses, underFloor: true };
+  }
   return { ...base, result: "held", exId: mv.exId, stage: mv.stage || 0, target: mv.target };
 }
 const KEY = "og_trainer_state_v1";
+const DB_NAME = "og_trainer";
+const STORE = "kv";
+function openDB() {
+  return new Promise((res, rej) => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    } catch (e) {
+      rej(e);
+    }
+  });
+}
+function idbGet(k) {
+  return openDB().then((db) => new Promise((res, rej) => {
+    const t = db.transaction(STORE, "readonly").objectStore(STORE).get(k);
+    t.onsuccess = () => res(t.result ?? null);
+    t.onerror = () => rej(t.error);
+  }));
+}
+function idbSet(k, v) {
+  return openDB().then((db) => new Promise((res, rej) => {
+    const t = db.transaction(STORE, "readwrite").objectStore(STORE).put(v, k);
+    t.onsuccess = () => res(true);
+    t.onerror = () => rej(t.error);
+  }));
+}
 async function loadState() {
   try {
-    const v = localStorage.getItem(KEY);
+    let v = await idbGet(KEY);
+    if (v == null) {
+      try {
+        const ls = localStorage.getItem(KEY);
+        if (ls) {
+          v = ls;
+          await idbSet(KEY, ls);
+        }
+      } catch {
+      }
+    }
     return v ? JSON.parse(v) : null;
   } catch {
-    return null;
+    try {
+      const ls = localStorage.getItem(KEY);
+      return ls ? JSON.parse(ls) : null;
+    } catch {
+      return null;
+    }
   }
 }
 async function saveState(s) {
+  const str = JSON.stringify(s);
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    await idbSet(KEY, str);
   } catch {
   }
+  try {
+    localStorage.setItem(KEY, str);
+  } catch {
+  }
+}
+function lastSessionDate(s) {
+  if (!s || !s.log || !s.log.length) return null;
+  const d = new Date(s.log[s.log.length - 1].date);
+  return isNaN(d.getTime()) ? null : d;
+}
+function applyLayoff(s) {
+  const last = lastSessionDate(s);
+  if (!last) return { s, layoff: 0 };
+  const days = Math.floor((Date.now() - last.getTime()) / 864e5);
+  if (days >= LAYOFF_DAYS && (s.sessionsSinceDeload || 0) > 0)
+    return { s: { ...s, sessionsSinceDeload: 0 }, layoff: days };
+  return { s, layoff: days >= LAYOFF_DAYS ? days : 0 };
 }
 function freshState() {
   const ladders = seedLadders();
@@ -427,7 +508,7 @@ function freshState() {
   const movements = {};
   for (const cat in levels) {
     const rung = ladders[cat][levels[cat] - 1];
-    movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0 };
+    movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
   }
   return { version: 2, ladders, movements, log: [], activeDraft: null, sessionsSinceDeload: 0, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
 }
@@ -439,7 +520,7 @@ function migrate(s) {
   for (const cat in META) {
     const old = s.movements && s.movements[cat] || { level: 1, target: rangeFor(cat, "reps").min, holds: 0 };
     const rung = ladders[cat][Math.max(0, Math.min(ladders[cat].length - 1, (old.level || 1) - 1))];
-    movements[cat] = { exId: rung.id, target: old.target ?? rangeFor(cat, rung.type).min, stage: 0, holds: old.holds || 0 };
+    movements[cat] = { exId: rung.id, target: old.target ?? rangeFor(cat, rung.type).min, stage: 0, holds: old.holds || 0, misses: 0 };
   }
   return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sessionsSinceDeload: s.sessionsSinceDeload || 0, sheetUrl: s.sheetUrl || "", sheetToken: s.sheetToken || "", createdAt: s.createdAt || Date.now() };
 }
@@ -454,7 +535,7 @@ function unlockAudio() {
   } catch {
   }
 }
-function beep() {
+function beep(freq = 880, dur = 0.45) {
   try {
     const c = _audio;
     if (!c) return;
@@ -464,16 +545,43 @@ function beep() {
     o.connect(g);
     g.connect(c.destination);
     o.type = "sine";
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(1e-4, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.3, c.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(1e-4, c.currentTime + 0.45);
-    o.start();
-    o.stop(c.currentTime + 0.45);
+    o.frequency.value = freq;
+    const t = c.currentTime;
+    g.gain.setValueAtTime(1e-4, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+    o.start(t);
+    o.stop(t + dur);
   } catch {
   }
+}
+function ding() {
+  beep(988, 0.16);
+  setTimeout(() => beep(988, 0.16), 200);
+  setTimeout(() => beep(1319, 0.42), 400);
   try {
-    if (navigator.vibrate) navigator.vibrate(220);
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 320]);
+  } catch {
+  }
+}
+let _wake = null;
+async function requestWake() {
+  try {
+    if ("wakeLock" in navigator && !_wake) {
+      _wake = await navigator.wakeLock.request("screen");
+      _wake.addEventListener("release", () => {
+        _wake = null;
+      });
+    }
+  } catch {
+  }
+}
+function releaseWake() {
+  try {
+    if (_wake) {
+      _wake.release();
+      _wake = null;
+    }
   } catch {
   }
 }
@@ -514,35 +622,72 @@ function buildFlow(focus, rounds, work) {
 }
 function HoldTimer({ seconds }) {
   const [rem, setRem] = useState(null);
+  const [prep, setPrep] = useState(null);
   const raf = useRef(null);
   const end = useRef(0);
-  useEffect(() => () => cancelAnimationFrame(raf.current), []);
-  const tick = () => {
-    const left = Math.max(0, Math.ceil((end.current - Date.now()) / 1e3));
-    setRem(left);
-    if (left <= 0) {
-      beep();
-      cancelAnimationFrame(raf.current);
-      setTimeout(() => setRem(null), 900);
+  const prepEnd = useRef(0);
+  const went = useRef(false);
+  const lastTick = useRef(-1);
+  useEffect(() => () => {
+    cancelAnimationFrame(raf.current);
+    releaseWake();
+  }, []);
+  const loop = () => {
+    const now = Date.now();
+    if (now < prepEnd.current) {
+      const p = Math.max(1, Math.ceil((prepEnd.current - now) / 1e3));
+      if (p !== lastTick.current) {
+        lastTick.current = p;
+        beep(660, 0.09);
+      }
+      setPrep(p);
+      raf.current = requestAnimationFrame(loop);
       return;
     }
-    raf.current = requestAnimationFrame(tick);
+    if (!went.current) {
+      went.current = true;
+      setPrep(null);
+      beep(880, 0.18);
+    }
+    const left = Math.max(0, Math.ceil((end.current - now) / 1e3));
+    setRem(left);
+    if (left <= 0) {
+      ding();
+      releaseWake();
+      cancelAnimationFrame(raf.current);
+      setTimeout(() => {
+        setRem(null);
+        setPrep(null);
+      }, 900);
+      return;
+    }
+    raf.current = requestAnimationFrame(loop);
   };
   const start = () => {
     unlockAudio();
-    end.current = Date.now() + seconds * 1e3;
+    requestWake();
+    const now = Date.now();
+    prepEnd.current = now + PREP * 1e3;
+    end.current = prepEnd.current + seconds * 1e3;
+    went.current = false;
+    lastTick.current = -1;
+    setPrep(PREP);
     setRem(seconds);
     cancelAnimationFrame(raf.current);
-    raf.current = requestAnimationFrame(tick);
+    raf.current = requestAnimationFrame(loop);
   };
-  if (rem === null) return /* @__PURE__ */ React.createElement("button", { className: "ht-btn", onClick: start }, "Start ", seconds, "s hold");
-  return /* @__PURE__ */ React.createElement("button", { className: "ht-btn live", onClick: () => {
+  const stop = () => {
     cancelAnimationFrame(raf.current);
+    releaseWake();
     setRem(null);
-  } }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, rem), /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to stop"));
+    setPrep(null);
+  };
+  if (rem === null && prep === null) return /* @__PURE__ */ React.createElement("button", { className: "ht-btn", onClick: start }, "Start ", seconds, "s hold");
+  if (prep !== null) return /* @__PURE__ */ React.createElement("button", { className: "ht-btn live prep", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, "Get set \u2014 ", prep), /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to cancel"));
+  return /* @__PURE__ */ React.createElement("button", { className: "ht-btn live", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, rem), /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to stop"));
 }
-function Stepper({ value, unit, onChange }) {
-  return /* @__PURE__ */ React.createElement("div", { className: "stepper" }, /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(Math.max(0, value - 1)) }, "\u2013"), /* @__PURE__ */ React.createElement("div", { className: "readout" }, /* @__PURE__ */ React.createElement("span", { className: "rd-num" }, value), /* @__PURE__ */ React.createElement("span", { className: "rd-unit" }, unit)), /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(value + 1) }, "+"));
+function Stepper({ value, unit, onChange, step = 1, min = 0 }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "stepper" }, /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(Math.max(min, value - step)) }, "\u2013"), /* @__PURE__ */ React.createElement("div", { className: "readout" }, /* @__PURE__ */ React.createElement("span", { className: "rd-num" }, value), /* @__PURE__ */ React.createElement("span", { className: "rd-unit" }, unit)), /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(value + step) }, "+"));
 }
 function Ladder({ data, cat }) {
   const { ladder, index } = rungOf(data, cat);
@@ -569,18 +714,30 @@ function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [syncDraft, setSyncDraft] = useState({ url: "", token: "" });
+  const [deload, setDeload] = useState(false);
+  const [load, setLoad] = useState({});
+  const [layoff, setLayoff] = useState(0);
+  const [importText, setImportText] = useState("");
+  const [importMsg, setImportMsg] = useState(null);
   useEffect(() => {
     (async () => {
-      let s = migrate(await loadState());
+      const r0 = applyLayoff(migrate(await loadState()));
+      let s = r0.s;
+      if (r0.layoff) setLayoff(r0.layoff);
       await saveState(s);
       setData(s);
       setSyncDraft({ url: s.sheetUrl || "", token: s.sheetToken || "" });
+      const dl = (s.sessionsSinceDeload || 0) >= DELOAD_EVERY;
       if (s.activeDraft) {
         setDraft(s.activeDraft.sets);
         setFeel(s.activeDraft.feel || defaultFeel());
+        setLoad(s.activeDraft.load || {});
+        setDeload(!!s.activeDraft.deload);
       } else {
-        setDraft(freshDraft(s));
+        setDeload(dl);
+        setDraft(freshDraft(s, dl));
         setFeel(defaultFeel());
+        setLoad({});
       }
     })();
   }, []);
@@ -589,18 +746,23 @@ function App() {
     for (const c in META) f[c] = "on";
     return f;
   }
-  function freshDraft(s) {
+  function freshDraft(s, dl) {
     const d = {};
-    for (const cat in META) d[cat] = Array(SETS).fill(s.movements[cat].target);
+    for (const cat in META) {
+      const { rung } = rungOf(s, cat);
+      const r = rangeFor(cat, rung.type);
+      const n = dl ? DELOAD_SETS : SETS;
+      d[cat] = Array(n).fill(dl ? r.min : s.movements[cat].target);
+    }
     return d;
   }
   function persist(next) {
     setData(next);
     saveState(next);
   }
-  function autosave(nextDraft, nextFeel) {
+  function autosave(nextDraft, nextFeel, nextLoad, nextDeload) {
     if (!data || phase !== "log") return;
-    const next = { ...data, activeDraft: { sets: nextDraft, feel: nextFeel, startedAt: data.activeDraft?.startedAt || Date.now() } };
+    const next = { ...data, activeDraft: { sets: nextDraft, feel: nextFeel, load: nextLoad ?? load, deload: nextDeload ?? deload, startedAt: data.activeDraft?.startedAt || Date.now() } };
     persist(next);
   }
   function setSet(cat, i, val) {
@@ -608,38 +770,68 @@ function App() {
       const c = [...d[cat]];
       c[i] = val;
       const nd = { ...d, [cat]: c };
-      autosave(nd, feel);
+      autosave(nd, feel, load, deload);
       return nd;
     });
   }
   function setFeelFor(cat, v) {
     setFeel((f) => {
       const nf = { ...f, [cat]: v };
-      autosave(draft, nf);
+      autosave(draft, nf, load, deload);
       return nf;
     });
   }
+  function setLoadFor(cat, v) {
+    setLoad((l) => {
+      const nl = { ...l, [cat]: v };
+      autosave(draft, feel, nl, deload);
+      return nl;
+    });
+  }
   function finishSession() {
+    if (deload) {
+      const items2 = [];
+      for (const cat in META) {
+        const { rung, index } = rungOf(data, cat);
+        items2.push({ cat, name: rung.name, exType: rung.type, sets: [...draft[cat]], feel: feel[cat] || "on", result: "deload", level: index + 1, stage: data.movements[cat].stage || 0, load: load[cat] || 0, score01: 0 });
+      }
+      const rec2 = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), type: "Deload", items: items2 };
+      persist({ ...data, log: [...data.log, rec2], activeDraft: null, sessionsSinceDeload: 0 });
+      pushToSheet([rec2]);
+      setDeload(false);
+      setLayoff(0);
+      setSummary(items2);
+      setPhase("done");
+      return;
+    }
     const items = [], moves = { ...data.movements };
     for (const cat in META) {
       const res = autoreg(data, cat, draft[cat], feel[cat] || "on");
       const r = rangeFor(cat, res.exType);
       const score01 = Math.max(0, Math.min(1, (Math.min(...draft[cat]) - r.min) / Math.max(1, r.max - r.min)));
-      moves[cat] = { exId: res.exId, target: res.target, stage: res.stage, holds: res.result === "held" ? (data.movements[cat].holds || 0) + 1 : 0 };
-      items.push({ cat, name: res.rungName, exType: res.exType, sets: [...draft[cat]], feel: feel[cat] || "on", result: res.result, level: res.level, stage: res.stageWas, nextName: res.nextName, stageLabel: res.stageLabel, score01 });
+      moves[cat] = { exId: res.exId, target: res.target, stage: res.stage, holds: res.result === "held" ? (data.movements[cat].holds || 0) + 1 : 0, misses: res.misses ?? 0 };
+      items.push({ cat, name: res.rungName, exType: res.exType, sets: [...draft[cat]], feel: feel[cat] || "on", result: res.result, level: res.level, stage: res.stageWas, nextName: res.nextName, stageLabel: res.stageLabel, regressTo: res.regressTo, underFloor: res.underFloor, load: load[cat] || 0, score01 });
     }
     const record = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), type: "Full Body", items };
     persist({ ...data, movements: moves, log: [...data.log, record], activeDraft: null, sessionsSinceDeload: (data.sessionsSinceDeload || 0) + 1 });
     pushToSheet([record]);
+    setLayoff(0);
     setSummary(items);
     setPhase("done");
   }
   function startNext() {
-    setDraft(freshDraft(data));
+    const dl = (data.sessionsSinceDeload || 0) >= DELOAD_EVERY;
+    setDeload(dl);
+    setDraft(freshDraft(data, dl));
     setFeel(defaultFeel());
+    setLoad({});
     setSummary(null);
     setPhase("log");
     setView("today");
+  }
+  function skipDeload() {
+    setDeload(false);
+    setDraft(freshDraft(data, false));
   }
   function mutateLadder(cat, fn) {
     const ladder = data.ladders[cat].map((r) => ({ ...r }));
@@ -669,18 +861,41 @@ function App() {
     const l = data.ladders[cat];
     const i = Math.max(0, Math.min(l.length - 1, newIndex));
     const rung = l[i];
-    persist({ ...data, movements: { ...data.movements, [cat]: { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0 } } });
-    setDraft((d) => ({ ...d, [cat]: Array(SETS).fill(rangeFor(cat, rung.type).min) }));
+    persist({ ...data, movements: { ...data.movements, [cat]: { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 } } });
+    setDraft((d) => ({ ...d, [cat]: Array(deload ? DELOAD_SETS : SETS).fill(rangeFor(cat, rung.type).min) }));
   }
   function ackDeload() {
     persist({ ...data, sessionsSinceDeload: 0 });
   }
   function exportCSV() {
-    const rows = [["Date", "Session", "Movement", "Exercise", "Stage", "Measure", "Set", "Value", "Feel", "Result"]];
-    data.log.forEach((s) => s.items.forEach((it) => it.sets.forEach((v, i) => rows.push([s.date, s.type, META[it.cat].name, it.name, STAGES[it.stage || 0].key, it.exType === "hold" ? "sec" : "reps", i + 1, v, it.feel, it.result]))));
+    const rows = [["Date", "Session", "Movement", "Exercise", "Stage", "Measure", "Set", "Value", "Load", "Feel", "Result"]];
+    data.log.forEach((s) => s.items.forEach((it) => it.sets.forEach((v, i) => rows.push([s.date, s.type, META[it.cat].name, it.name, STAGES[it.stage || 0].key, it.exType === "hold" ? "sec" : "reps", i + 1, v, it.load || 0, it.feel, it.result]))));
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     download("og-training-log.csv", csv, "text/csv");
     setExportText({ label: "Log (CSV)", text: csv });
+  }
+  function importJSON() {
+    setImportMsg(null);
+    let parsed;
+    try {
+      parsed = JSON.parse(importText);
+    } catch {
+      setImportMsg({ ok: false, t: "Couldn't parse that \u2014 check you pasted the whole JSON file." });
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.movements || !parsed.ladders) {
+      setImportMsg({ ok: false, t: "That doesn't look like an OG Trainer backup." });
+      return;
+    }
+    const migrated = migrate(parsed);
+    persist(migrated);
+    const dl = (migrated.sessionsSinceDeload || 0) >= DELOAD_EVERY;
+    setDeload(dl);
+    setDraft(freshDraft(migrated, dl));
+    setFeel(defaultFeel());
+    setLoad({});
+    setImportText("");
+    setImportMsg({ ok: true, t: `Restored \u2014 ${migrated.log.length} session${migrated.log.length === 1 ? "" : "s"} in history.` });
   }
   function exportJSON() {
     const t = JSON.stringify(data, null, 2);
@@ -704,7 +919,7 @@ function App() {
   function pushToSheet(sessions) {
     const url = (data.sheetUrl || "").trim();
     if (!url || !sessions.length) return;
-    const payload = { token: data.sheetToken || "", sessions: sessions.map((s) => ({ id: s.id, date: s.date, items: s.items.map((it) => ({ movement: META[it.cat].name, exercise: it.name, stage: STAGES[it.stage || 0].key, measure: it.exType === "hold" ? "sec" : "reps", feel: it.feel, result: it.result, sets: it.sets })) })) };
+    const payload = { token: data.sheetToken || "", sessions: sessions.map((s) => ({ id: s.id, date: s.date, items: s.items.map((it) => ({ movement: META[it.cat].name, exercise: it.name, stage: STAGES[it.stage || 0].key, measure: it.exType === "hold" ? "sec" : "reps", load: it.load || 0, feel: it.feel, result: it.result, sets: it.sets })) })) };
     try {
       fetch(url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
     } catch {
@@ -719,16 +934,22 @@ function App() {
     const last = lastFor(data, cat);
     const stageLabel = rung.type !== "hold" && (mv.stage || 0) > 0 ? STAGES[mv.stage].label : null;
     const f = feel[cat] || "on";
-    return /* @__PURE__ */ React.createElement("div", { className: "card" + (lead ? " lead" : "") }, /* @__PURE__ */ React.createElement("div", { className: "card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, lead && /* @__PURE__ */ React.createElement("span", { className: "tag" }, "fresh")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name), stageLabel && /* @__PURE__ */ React.createElement("div", { className: "stage-cue" }, stageLabel)), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, rung.type === "hold" ? "HOLD" : "L" + (rungOf(data, cat).index + 1))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), /* @__PURE__ */ React.createElement("div", { className: "target" }, "target ", /* @__PURE__ */ React.createElement("b", null, SETS, "\xD7", mv.target, rung.type === "hold" ? "s" : ""), last && /* @__PURE__ */ React.createElement("span", { className: "rng" }, "last ", last.sets.join("\xB7"), last.exType === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "sets" }, draft[cat].map((v, i) => /* @__PURE__ */ React.createElement("div", { className: "setrow", key: i }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Set ", i + 1), /* @__PURE__ */ React.createElement(Stepper, { value: v, unit: rung.type === "hold" ? "sec" : "reps", onChange: (nv) => setSet(cat, i, nv) })))), rung.type === "hold" && /* @__PURE__ */ React.createElement(HoldTimer, { seconds: mv.target }), /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["easy", "on", "grindy"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: "feel-pill" + (f === k ? " on " + k : ""), onClick: () => setFeelFor(cat, k) }, k === "easy" ? "Easy" : k === "on" ? "On target" : "Grindy"))));
+    const tgt = deload ? r.min : mv.target;
+    const loadable = rung.type !== "hold" && /weight/i.test(rung.name);
+    return /* @__PURE__ */ React.createElement("div", { className: "card" + (lead ? " lead" : "") }, /* @__PURE__ */ React.createElement("div", { className: "card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, lead && /* @__PURE__ */ React.createElement("span", { className: "tag" }, "fresh")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name), stageLabel && /* @__PURE__ */ React.createElement("div", { className: "stage-cue" }, stageLabel)), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, rung.type === "hold" ? "HOLD" : "L" + (rungOf(data, cat).index + 1))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), /* @__PURE__ */ React.createElement("div", { className: "target" }, "target ", /* @__PURE__ */ React.createElement("b", null, draft[cat].length, "\xD7", tgt, rung.type === "hold" ? "s" : ""), last && /* @__PURE__ */ React.createElement("span", { className: "rng" }, "last ", last.sets.join("\xB7"), last.exType === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "sets" }, draft[cat].map((v, i) => /* @__PURE__ */ React.createElement("div", { className: "setrow", key: i }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Set ", i + 1), /* @__PURE__ */ React.createElement(Stepper, { value: v, unit: rung.type === "hold" ? "sec" : "reps", onChange: (nv) => setSet(cat, i, nv) }))), loadable && /* @__PURE__ */ React.createElement("div", { className: "setrow load", key: "load" }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Load"), /* @__PURE__ */ React.createElement(Stepper, { value: load[cat] || 0, unit: "lb", step: 5, onChange: (nv) => setLoadFor(cat, nv) }))), rung.type === "hold" && /* @__PURE__ */ React.createElement(HoldTimer, { seconds: tgt }), /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["easy", "on", "grindy"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: "feel-pill" + (f === k ? " on " + k : ""), onClick: () => setFeelFor(cat, k) }, k === "easy" ? "Easy" : k === "on" ? "On target" : "Grindy"))));
+  }
+  function renderPrimer() {
+    return /* @__PURE__ */ React.createElement("details", { className: "finisher primer" }, /* @__PURE__ */ React.createElement("summary", null, "Handstand primer ", /* @__PURE__ */ React.createElement("em", null, "\u2014 fresh, before you load \xB7 skill, not strength")), /* @__PURE__ */ React.createElement("div", { className: "primer-body" }, /* @__PURE__ */ React.createElement("p", { className: "note" }, "Practice the balance fresh and brief \u2014 stop well short of fatigue. Nothing here is logged or autoregulated; it's the foundation under your free HSPU and presses."), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Wrist + shoulder prep \u2014 60\u201390s"), /* @__PURE__ */ React.createElement("li", null, "Wall handstand \u2014 chest-to-wall, hollow line, breathe"), /* @__PURE__ */ React.createElement("li", null, "Kick-up to balance \u2014 5\u20138 quality attempts, freestanding")), /* @__PURE__ */ React.createElement(HoldTimer, { seconds: 30 })));
   }
   function renderToday() {
     if (phase === "done") return renderSummary();
     const est = Math.round(PAIRS.flat().length * SETS * 1.6 + BLOCK2.length * SETS * 1.3 + 6);
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Full body \xB7 \u2248 ", est, " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), deloadDue && /* @__PURE__ */ React.createElement("div", { className: "banner" }, "Deload due \u2014 you've trained ", data.sessionsSinceDeload, " sessions since your last easy week. Take a lighter week (cut a set, stay at the bottom of your ranges, don't chase advances).", /* @__PURE__ */ React.createElement("button", { onClick: ackDeload }, "Mark deload taken")), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("details", { className: "finisher" }, /* @__PURE__ */ React.createElement("summary", null, "Core / compression finisher ", /* @__PURE__ */ React.createElement("em", null, "\u2014 optional, 2\xD7/week")), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Ab-wheel \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Back arch \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Seated pike compression \u2014 3 \xD7 15s"), /* @__PURE__ */ React.createElement("li", null, "Side plank lift \u2014 3 \xD7 15 / side"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, deload ? "Deload \xB7 easy week" : "Full body \xB7 \u2248 " + est + " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), layoff > 0 && /* @__PURE__ */ React.createElement("div", { className: "banner info" }, "Welcome back \u2014 ", layoff, " days off. Your deload counter reset; ease into this first session and tag honestly."), deload && /* @__PURE__ */ React.createElement("div", { className: "banner" }, "Deload session \u2014 ", DELOAD_SETS, " sets at the bottom of every range. Nothing advances today; finishing resets your counter.", /* @__PURE__ */ React.createElement("button", { onClick: skipDeload }, "Train normally instead")), renderPrimer(), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("details", { className: "finisher" }, /* @__PURE__ */ React.createElement("summary", null, "Core / compression finisher ", /* @__PURE__ */ React.createElement("em", null, "\u2014 optional, 2\xD7/week")), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Ab-wheel \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Back arch \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Seated pike compression \u2014 3 \xD7 15s"), /* @__PURE__ */ React.createElement("li", null, "Side plank lift \u2014 3 \xD7 15 / side"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, deload ? "Finish deload" : "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
   }
   function renderSummary() {
-    const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder" };
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Session saved", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "How it adjusted"))), summary.map((it) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + it.result, key: it.cat }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, META[it.cat].name), /* @__PURE__ */ React.createElement("div", { className: "sum-sets" }, it.sets.join(" \xB7 "), it.exType === "hold" ? "s" : " reps", " \xB7 ", it.feel)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[it.result]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "intensified" ? it.stageLabel : it.name)))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: startNext }, "Start next session"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setView("progress") }, "See progress"), data.sheetUrl && /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Sent to your Sheet."));
+    const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder", regressed: "Stepped back", deload: "Deloaded" };
+    const nextText = (it) => it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "regressed" ? "\u2192 " + it.regressTo : it.result === "intensified" ? it.stageLabel : it.result === "deload" ? "easy week \xB7 nothing advanced" : it.underFloor ? it.name + " \xB7 below range \u2014 one more and it steps back" : it.name;
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Session saved", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "How it adjusted"))), summary.map((it) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + it.result, key: it.cat }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, META[it.cat].name), /* @__PURE__ */ React.createElement("div", { className: "sum-sets" }, it.sets.join(" \xB7 "), it.exType === "hold" ? "s" : " reps", it.load ? " \xB7 +" + it.load + "lb" : "", " \xB7 ", it.feel)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[it.result]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, nextText(it))))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: startNext }, "Start next session"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setView("progress") }, "See progress"), data.sheetUrl && /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Sent to your Sheet."));
   }
   function renderProgress() {
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Progress", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Ladders, trends & overrides"))), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
@@ -759,14 +980,16 @@ function App() {
     }), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Not auto-logged. If you push pull-ups on the road, bump Vertical Pull on Progress."))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, ["full", "upper", "lower", "mobility"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: travel.focus === k ? "on" : "", onClick: () => setTravel({ ...travel, focus: k, out: null }) }, k))), /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, [2, 3, 4].map((n) => /* @__PURE__ */ React.createElement("button", { key: n, className: travel.rounds === n ? "on" : "", onClick: () => setTravel({ ...travel, rounds: n, out: null }) }, n, " rounds"))), /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, [30, 40, 45].map((w) => /* @__PURE__ */ React.createElement("button", { key: w, className: travel.work === w ? "on" : "", onClick: () => setTravel({ ...travel, work: w, out: null }) }, w, "s"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => setTravel({ ...travel, out: buildFlow(travel.focus, travel.rounds, travel.work) }) }, "Generate flow"), out?.items && /* @__PURE__ */ React.createElement("div", { className: "travel-out" }, /* @__PURE__ */ React.createElement("div", { className: "to-title" }, "Movement Flow \xB7 ", out.focus), /* @__PURE__ */ React.createElement("div", { className: "to-sub" }, out.rounds, " rounds \xB7 ", out.work, "s each \xB7 short rest between moves \xB7 regenerate for a new draw"), out.items.map((m, i) => /* @__PURE__ */ React.createElement("div", { className: "to-item", key: i }, /* @__PURE__ */ React.createElement("span", null, m), /* @__PURE__ */ React.createElement("b", null, out.work, "s"))))));
   }
   function renderData() {
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " session", data.log.length === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 10\u201320s. One step per session, so under-leveled movements still climb fast."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " session", data.log.length === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 8\u201315s. One step per session, so under-leveled movements still climb fast. Miss the bottom of a range twice and it steps you back a rung automatically."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
       setView("editor");
       setEditCat(null);
-    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Deload."), " ", data.sessionsSinceDeload, " session", data.sessionsSinceDeload === 1 ? "" : "s", " since your last easy week; a prompt appears every ", DELOAD_EVERY, ". ", deloadDue ? "One's due now." : "", " ", /* @__PURE__ */ React.createElement("button", { className: "inline-btn", onClick: ackDeload }, "Mark deload taken")), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
+    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Restore from backup."), " Paste a JSON backup to replace everything in the app with it \u2014 the way back after clearing Safari or moving devices."), /* @__PURE__ */ React.createElement("textarea", { className: "import-area", placeholder: "Paste backup JSON here\u2026", value: importText, onChange: (e) => setImportText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: importJSON, disabled: !importText.trim() }, "Restore from this JSON"), importMsg && /* @__PURE__ */ React.createElement("p", { className: "import-msg " + (importMsg.ok ? "ok" : "err") }, importMsg.t), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Deload."), " ", data.sessionsSinceDeload, " session", data.sessionsSinceDeload === 1 ? "" : "s", " since your last easy week; a prompt appears every ", DELOAD_EVERY, ". ", deloadDue ? "One's due now." : "", " ", /* @__PURE__ */ React.createElement("button", { className: "inline-btn", onClick: ackDeload }, "Mark deload taken")), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
       const s = freshState();
       persist(s);
-      setDraft(freshDraft(s));
+      setDeload(false);
+      setDraft(freshDraft(s, false));
       setFeel(defaultFeel());
+      setLoad({});
       setConfirmReset(false);
       setView("today");
       setPhase("log");
@@ -897,6 +1120,21 @@ const CSS = `
 .navbtn{flex:1;background:none;border:none;color:var(--muted);font-family:var(--disp);text-transform:uppercase;letter-spacing:1px;font-size:14px;padding:14px 0 18px;cursor:pointer}
 .navbtn.active{color:var(--brass)}
 .app{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.banner.info{background:#10201c;border-color:#2c5247;color:var(--chalk)}
+.ht-btn.live.prep{border-color:var(--advance)}
+.ht-btn.live.prep .ht-num{font-size:21px;color:var(--advance)}
+.setrow.load .setlab{color:var(--brass)}
+.import-area{width:100%;height:90px;background:#10141a;color:var(--chalk);border:1px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:11px;padding:10px;margin-top:8px}
+.import-msg{font-size:12px;text-align:center;margin:8px 0 0}
+.import-msg.ok{color:var(--advance)}
+.import-msg.err{color:var(--stall)}
+.sumrow.regressed{border-left-color:var(--stall)}
+.sumrow.regressed .sum-flag{color:var(--stall)}
+.sumrow.deload{border-left-color:var(--advance)}
+.sumrow.deload .sum-flag{color:var(--advance)}
+.primer{border-color:#3c4250;margin:8px 0 6px}
+.primer summary{color:var(--brass)}
+.primer-body{padding-bottom:12px}
 @media (prefers-reduced-motion:reduce){.rung.now{box-shadow:none}}
 `;
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
