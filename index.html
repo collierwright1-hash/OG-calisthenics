@@ -343,11 +343,8 @@ const PAIRS = [["verticalPull", "hspu"], ["horizontalPull", "planche"]];
 const BLOCK2 = ["lsit", "pistol", "posterior"];
 const ORDER = [...PAIRS.flat(), ...BLOCK2];
 const SETS = 3;
-const DELOAD_EVERY = 12;
-const DELOAD_SETS = 2;
 const REGRESS_AFTER = 2;
 const PREP = 3;
-const LAYOFF_DAYS = 7;
 const STAGES = [
   { key: "standard", label: null },
   { key: "eccentric", label: "Slow eccentric \xB7 3s lowering" },
@@ -414,7 +411,7 @@ function autoreg(data, cat, sets, feel) {
     if (misses >= REGRESS_AFTER) {
       if ((mv.stage || 0) > 0) {
         const ns = (mv.stage || 0) - 1;
-        return { ...base, result: "regressed", exId: mv.exId, stage: ns, target: r.min, regressTo: rung.name + " \xB7 " + (STAGES[ns].label || "standard"), misses: 0 };
+        return { ...base, result: "regressed", exId: mv.exId, stage: ns, target: Math.max(r.min, r.max - 1), regressTo: rung.name + " \xB7 " + (STAGES[ns].label || "standard"), misses: 0 };
       }
       if (index > 0) {
         const prev = ladder[index - 1];
@@ -489,19 +486,6 @@ async function saveState(s) {
   } catch {
   }
 }
-function lastSessionDate(s) {
-  if (!s || !s.log || !s.log.length) return null;
-  const d = new Date(s.log[s.log.length - 1].date);
-  return isNaN(d.getTime()) ? null : d;
-}
-function applyLayoff(s) {
-  const last = lastSessionDate(s);
-  if (!last) return { s, layoff: 0 };
-  const days = Math.floor((Date.now() - last.getTime()) / 864e5);
-  if (days >= LAYOFF_DAYS && (s.sessionsSinceDeload || 0) > 0)
-    return { s: { ...s, sessionsSinceDeload: 0 }, layoff: days };
-  return { s, layoff: days >= LAYOFF_DAYS ? days : 0 };
-}
 function freshState() {
   const ladders = seedLadders();
   const levels = { planche: 6, hspu: 6, lsit: 5, pistol: 4, horizontalPull: 6, verticalPull: 3, posterior: 3 };
@@ -510,7 +494,7 @@ function freshState() {
     const rung = ladders[cat][levels[cat] - 1];
     movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
   }
-  return { version: 2, ladders, movements, log: [], activeDraft: null, sessionsSinceDeload: 0, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+  return { version: 2, ladders, movements, log: [], activeDraft: null, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
 }
 function migrate(s) {
   if (!s) return freshState();
@@ -522,7 +506,7 @@ function migrate(s) {
     const rung = ladders[cat][Math.max(0, Math.min(ladders[cat].length - 1, (old.level || 1) - 1))];
     movements[cat] = { exId: rung.id, target: old.target ?? rangeFor(cat, rung.type).min, stage: 0, holds: old.holds || 0, misses: 0 };
   }
-  return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sessionsSinceDeload: s.sessionsSinceDeload || 0, sheetUrl: s.sheetUrl || "", sheetToken: s.sheetToken || "", createdAt: s.createdAt || Date.now() };
+  return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sheetUrl: s.sheetUrl || "", sheetToken: s.sheetToken || "", createdAt: s.createdAt || Date.now() };
 }
 let _audio = null;
 function unlockAudio() {
@@ -714,28 +698,21 @@ function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [syncDraft, setSyncDraft] = useState({ url: "", token: "" });
-  const [deload, setDeload] = useState(false);
   const [load, setLoad] = useState({});
-  const [layoff, setLayoff] = useState(0);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState(null);
   useEffect(() => {
     (async () => {
-      const r0 = applyLayoff(migrate(await loadState()));
-      let s = r0.s;
-      if (r0.layoff) setLayoff(r0.layoff);
+      const s = migrate(await loadState());
       await saveState(s);
       setData(s);
       setSyncDraft({ url: s.sheetUrl || "", token: s.sheetToken || "" });
-      const dl = (s.sessionsSinceDeload || 0) >= DELOAD_EVERY;
       if (s.activeDraft) {
         setDraft(s.activeDraft.sets);
         setFeel(s.activeDraft.feel || defaultFeel());
         setLoad(s.activeDraft.load || {});
-        setDeload(!!s.activeDraft.deload);
       } else {
-        setDeload(dl);
-        setDraft(freshDraft(s, dl));
+        setDraft(freshDraft(s));
         setFeel(defaultFeel());
         setLoad({});
       }
@@ -746,23 +723,18 @@ function App() {
     for (const c in META) f[c] = "on";
     return f;
   }
-  function freshDraft(s, dl) {
+  function freshDraft(s) {
     const d = {};
-    for (const cat in META) {
-      const { rung } = rungOf(s, cat);
-      const r = rangeFor(cat, rung.type);
-      const n = dl ? DELOAD_SETS : SETS;
-      d[cat] = Array(n).fill(dl ? r.min : s.movements[cat].target);
-    }
+    for (const cat in META) d[cat] = Array(SETS).fill(s.movements[cat].target);
     return d;
   }
   function persist(next) {
     setData(next);
     saveState(next);
   }
-  function autosave(nextDraft, nextFeel, nextLoad, nextDeload) {
+  function autosave(nextDraft, nextFeel, nextLoad) {
     if (!data || phase !== "log") return;
-    const next = { ...data, activeDraft: { sets: nextDraft, feel: nextFeel, load: nextLoad ?? load, deload: nextDeload ?? deload, startedAt: data.activeDraft?.startedAt || Date.now() } };
+    const next = { ...data, activeDraft: { sets: nextDraft, feel: nextFeel, load: nextLoad ?? load, startedAt: data.activeDraft?.startedAt || Date.now() } };
     persist(next);
   }
   function setSet(cat, i, val) {
@@ -770,40 +742,25 @@ function App() {
       const c = [...d[cat]];
       c[i] = val;
       const nd = { ...d, [cat]: c };
-      autosave(nd, feel, load, deload);
+      autosave(nd, feel, load);
       return nd;
     });
   }
   function setFeelFor(cat, v) {
     setFeel((f) => {
       const nf = { ...f, [cat]: v };
-      autosave(draft, nf, load, deload);
+      autosave(draft, nf, load);
       return nf;
     });
   }
   function setLoadFor(cat, v) {
     setLoad((l) => {
       const nl = { ...l, [cat]: v };
-      autosave(draft, feel, nl, deload);
+      autosave(draft, feel, nl);
       return nl;
     });
   }
   function finishSession() {
-    if (deload) {
-      const items2 = [];
-      for (const cat in META) {
-        const { rung, index } = rungOf(data, cat);
-        items2.push({ cat, name: rung.name, exType: rung.type, sets: [...draft[cat]], feel: feel[cat] || "on", result: "deload", level: index + 1, stage: data.movements[cat].stage || 0, load: load[cat] || 0, score01: 0 });
-      }
-      const rec2 = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), type: "Deload", items: items2 };
-      persist({ ...data, log: [...data.log, rec2], activeDraft: null, sessionsSinceDeload: 0 });
-      pushToSheet([rec2]);
-      setDeload(false);
-      setLayoff(0);
-      setSummary(items2);
-      setPhase("done");
-      return;
-    }
     const items = [], moves = { ...data.movements };
     for (const cat in META) {
       const res = autoreg(data, cat, draft[cat], feel[cat] || "on");
@@ -813,25 +770,18 @@ function App() {
       items.push({ cat, name: res.rungName, exType: res.exType, sets: [...draft[cat]], feel: feel[cat] || "on", result: res.result, level: res.level, stage: res.stageWas, nextName: res.nextName, stageLabel: res.stageLabel, regressTo: res.regressTo, underFloor: res.underFloor, load: load[cat] || 0, score01 });
     }
     const record = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), type: "Full Body", items };
-    persist({ ...data, movements: moves, log: [...data.log, record], activeDraft: null, sessionsSinceDeload: (data.sessionsSinceDeload || 0) + 1 });
+    persist({ ...data, movements: moves, log: [...data.log, record], activeDraft: null });
     pushToSheet([record]);
-    setLayoff(0);
     setSummary(items);
     setPhase("done");
   }
   function startNext() {
-    const dl = (data.sessionsSinceDeload || 0) >= DELOAD_EVERY;
-    setDeload(dl);
-    setDraft(freshDraft(data, dl));
+    setDraft(freshDraft(data));
     setFeel(defaultFeel());
     setLoad({});
     setSummary(null);
     setPhase("log");
     setView("today");
-  }
-  function skipDeload() {
-    setDeload(false);
-    setDraft(freshDraft(data, false));
   }
   function mutateLadder(cat, fn) {
     const ladder = data.ladders[cat].map((r) => ({ ...r }));
@@ -862,10 +812,16 @@ function App() {
     const i = Math.max(0, Math.min(l.length - 1, newIndex));
     const rung = l[i];
     persist({ ...data, movements: { ...data.movements, [cat]: { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 } } });
-    setDraft((d) => ({ ...d, [cat]: Array(deload ? DELOAD_SETS : SETS).fill(rangeFor(cat, rung.type).min) }));
+    setDraft((d) => ({ ...d, [cat]: Array(SETS).fill(rangeFor(cat, rung.type).min) }));
   }
-  function ackDeload() {
-    persist({ ...data, sessionsSinceDeload: 0 });
+  function setStage(cat, ns) {
+    const { rung } = rungOf(data, cat);
+    if (rung.type === "hold") return;
+    const r = rangeFor(cat, rung.type);
+    const cur = data.movements[cat].stage || 0;
+    const target = ns > cur ? r.min : Math.max(r.min, r.max - 1);
+    persist({ ...data, movements: { ...data.movements, [cat]: { ...data.movements[cat], stage: ns, target, misses: 0 } } });
+    setDraft((d) => ({ ...d, [cat]: Array(SETS).fill(target) }));
   }
   function exportCSV() {
     const rows = [["Date", "Session", "Movement", "Exercise", "Stage", "Measure", "Set", "Value", "Load", "Feel", "Result"]];
@@ -889,9 +845,7 @@ function App() {
     }
     const migrated = migrate(parsed);
     persist(migrated);
-    const dl = (migrated.sessionsSinceDeload || 0) >= DELOAD_EVERY;
-    setDeload(dl);
-    setDraft(freshDraft(migrated, dl));
+    setDraft(freshDraft(migrated));
     setFeel(defaultFeel());
     setLoad({});
     setImportText("");
@@ -926,7 +880,6 @@ function App() {
     }
   }
   if (!data) return /* @__PURE__ */ React.createElement("div", { className: "boot" }, "Loading your training\u2026", /* @__PURE__ */ React.createElement("style", null, CSS));
-  const deloadDue = (data.sessionsSinceDeload || 0) >= DELOAD_EVERY;
   function MovementCard({ cat, lead }) {
     const { rung } = rungOf(data, cat);
     const mv = data.movements[cat];
@@ -934,7 +887,7 @@ function App() {
     const last = lastFor(data, cat);
     const stageLabel = rung.type !== "hold" && (mv.stage || 0) > 0 ? STAGES[mv.stage].label : null;
     const f = feel[cat] || "on";
-    const tgt = deload ? r.min : mv.target;
+    const tgt = mv.target;
     const loadable = rung.type !== "hold" && /weight/i.test(rung.name);
     return /* @__PURE__ */ React.createElement("div", { className: "card" + (lead ? " lead" : "") }, /* @__PURE__ */ React.createElement("div", { className: "card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, lead && /* @__PURE__ */ React.createElement("span", { className: "tag" }, "fresh")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name), stageLabel && /* @__PURE__ */ React.createElement("div", { className: "stage-cue" }, stageLabel)), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, rung.type === "hold" ? "HOLD" : "L" + (rungOf(data, cat).index + 1))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), /* @__PURE__ */ React.createElement("div", { className: "target" }, "target ", /* @__PURE__ */ React.createElement("b", null, draft[cat].length, "\xD7", tgt, rung.type === "hold" ? "s" : ""), last && /* @__PURE__ */ React.createElement("span", { className: "rng" }, "last ", last.sets.join("\xB7"), last.exType === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "sets" }, draft[cat].map((v, i) => /* @__PURE__ */ React.createElement("div", { className: "setrow", key: i }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Set ", i + 1), /* @__PURE__ */ React.createElement(Stepper, { value: v, unit: rung.type === "hold" ? "sec" : "reps", onChange: (nv) => setSet(cat, i, nv) }))), loadable && /* @__PURE__ */ React.createElement("div", { className: "setrow load", key: "load" }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Load"), /* @__PURE__ */ React.createElement(Stepper, { value: load[cat] || 0, unit: "lb", step: 5, onChange: (nv) => setLoadFor(cat, nv) }))), rung.type === "hold" && /* @__PURE__ */ React.createElement(HoldTimer, { seconds: tgt }), /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["easy", "on", "grindy"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: "feel-pill" + (f === k ? " on " + k : ""), onClick: () => setFeelFor(cat, k) }, k === "easy" ? "Easy" : k === "on" ? "On target" : "Grindy"))));
   }
@@ -944,11 +897,11 @@ function App() {
   function renderToday() {
     if (phase === "done") return renderSummary();
     const est = Math.round(PAIRS.flat().length * SETS * 1.6 + BLOCK2.length * SETS * 1.3 + 6);
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, deload ? "Deload \xB7 easy week" : "Full body \xB7 \u2248 " + est + " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), layoff > 0 && /* @__PURE__ */ React.createElement("div", { className: "banner info" }, "Welcome back \u2014 ", layoff, " days off. Your deload counter reset; ease into this first session and tag honestly."), deload && /* @__PURE__ */ React.createElement("div", { className: "banner" }, "Deload session \u2014 ", DELOAD_SETS, " sets at the bottom of every range. Nothing advances today; finishing resets your counter.", /* @__PURE__ */ React.createElement("button", { onClick: skipDeload }, "Train normally instead")), renderPrimer(), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("details", { className: "finisher" }, /* @__PURE__ */ React.createElement("summary", null, "Core / compression finisher ", /* @__PURE__ */ React.createElement("em", null, "\u2014 optional, 2\xD7/week")), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Ab-wheel \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Back arch \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Seated pike compression \u2014 3 \xD7 15s"), /* @__PURE__ */ React.createElement("li", null, "Side plank lift \u2014 3 \xD7 15 / side"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, deload ? "Finish deload" : "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Full body \xB7 \u2248 " + est + " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), renderPrimer(), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("details", { className: "finisher" }, /* @__PURE__ */ React.createElement("summary", null, "Core / compression finisher ", /* @__PURE__ */ React.createElement("em", null, "\u2014 optional, 2\xD7/week")), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Ab-wheel \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Back arch \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Seated pike compression \u2014 3 \xD7 15s"), /* @__PURE__ */ React.createElement("li", null, "Side plank lift \u2014 3 \xD7 15 / side"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
   }
   function renderSummary() {
-    const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder", regressed: "Stepped back", deload: "Deloaded" };
-    const nextText = (it) => it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "regressed" ? "\u2192 " + it.regressTo : it.result === "intensified" ? it.stageLabel : it.result === "deload" ? "easy week \xB7 nothing advanced" : it.underFloor ? it.name + " \xB7 below range \u2014 one more and it steps back" : it.name;
+    const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder", regressed: "Stepped back" };
+    const nextText = (it) => it.result === "advanced" ? "\u2192 " + it.nextName : it.result === "regressed" ? "\u2192 " + it.regressTo : it.result === "intensified" ? it.stageLabel : it.underFloor ? it.name + " \xB7 below range \u2014 one more and it steps back" : it.name;
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Session saved", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "How it adjusted"))), summary.map((it) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + it.result, key: it.cat }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, META[it.cat].name), /* @__PURE__ */ React.createElement("div", { className: "sum-sets" }, it.sets.join(" \xB7 "), it.exType === "hold" ? "s" : " reps", it.load ? " \xB7 +" + it.load + "lb" : "", " \xB7 ", it.feel)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[it.result]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, nextText(it))))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: startNext }, "Start next session"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setView("progress") }, "See progress"), data.sheetUrl && /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Sent to your Sheet."));
   }
   function renderProgress() {
@@ -961,7 +914,7 @@ function App() {
       const stalled = (mv.holds || 0) >= 3;
       const open = expanded === cat;
       const hist = data.log.map((s) => s.items.find((x) => x.cat === cat)).filter(Boolean).slice(-15);
-      return /* @__PURE__ */ React.createElement("div", { className: "pcard" + (stalled ? " stalled" : ""), key: cat }, /* @__PURE__ */ React.createElement("div", { className: "pcard-head", onClick: () => setExpanded(open ? null : cat) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, stalled && /* @__PURE__ */ React.createElement("span", { className: "tag warn" }, "stalled")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name, rung.type !== "hold" && (mv.stage || 0) > 0 ? " \xB7 " + STAGES[mv.stage].key : "", " \xB7 ", SETS, "\xD7", mv.target, rung.type === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, "L", index + 1, /* @__PURE__ */ React.createElement("span", null, "/", ladder.length))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), open && /* @__PURE__ */ React.createElement("div", { className: "override" }, /* @__PURE__ */ React.createElement(Sparkline, { items: hist }), /* @__PURE__ */ React.createElement("div", { className: "ov-row" }, /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => override(cat, index - 1) }, "\u2013 level"), /* @__PURE__ */ React.createElement("select", { value: index, onChange: (e) => override(cat, +e.target.value) }, ladder.map((rr, i) => /* @__PURE__ */ React.createElement("option", { key: rr.id, value: i }, "L", i + 1, " \xB7 ", rr.name))), /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => override(cat, index + 1) }, "+ level")), /* @__PURE__ */ React.createElement("p", { className: "ov-note" }, "Manual change resets stage and target to the bottom of the range.")));
+      return /* @__PURE__ */ React.createElement("div", { className: "pcard" + (stalled ? " stalled" : ""), key: cat }, /* @__PURE__ */ React.createElement("div", { className: "pcard-head", onClick: () => setExpanded(open ? null : cat) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, stalled && /* @__PURE__ */ React.createElement("span", { className: "tag warn" }, "stalled")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name, rung.type !== "hold" && (mv.stage || 0) > 0 ? " \xB7 " + STAGES[mv.stage].key : "", " \xB7 ", SETS, "\xD7", mv.target, rung.type === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, "L", index + 1, /* @__PURE__ */ React.createElement("span", null, "/", ladder.length))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), open && /* @__PURE__ */ React.createElement("div", { className: "override" }, /* @__PURE__ */ React.createElement(Sparkline, { items: hist }), /* @__PURE__ */ React.createElement("div", { className: "ov-row" }, /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => override(cat, index - 1) }, "\u2013 level"), /* @__PURE__ */ React.createElement("select", { value: index, onChange: (e) => override(cat, +e.target.value) }, ladder.map((rr, i) => /* @__PURE__ */ React.createElement("option", { key: rr.id, value: i }, "L", i + 1, " \xB7 ", rr.name))), /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => override(cat, index + 1) }, "+ level")), rung.type !== "hold" && /* @__PURE__ */ React.createElement("div", { className: "tempo-row" }, /* @__PURE__ */ React.createElement("span", { className: "tempo-lab" }, "Tempo"), STAGES.map((st, si) => /* @__PURE__ */ React.createElement("button", { key: st.key, className: "tempo-btn" + ((mv.stage || 0) === si ? " on" : ""), onClick: () => setStage(cat, si) }, si === 0 ? "Standard" : si === 1 ? "Eccentric" : "Paused"))), /* @__PURE__ */ React.createElement("p", { className: "ov-note" }, "Level change resets to the bottom of the range. A harder tempo starts at the bottom; an easier one keeps your reps near the top.")));
     }));
   }
   function renderEditor() {
@@ -983,11 +936,10 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " session", data.log.length === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 8\u201315s. One step per session, so under-leveled movements still climb fast. Miss the bottom of a range twice and it steps you back a rung automatically."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
       setView("editor");
       setEditCat(null);
-    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Restore from backup."), " Paste a JSON backup to replace everything in the app with it \u2014 the way back after clearing Safari or moving devices."), /* @__PURE__ */ React.createElement("textarea", { className: "import-area", placeholder: "Paste backup JSON here\u2026", value: importText, onChange: (e) => setImportText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: importJSON, disabled: !importText.trim() }, "Restore from this JSON"), importMsg && /* @__PURE__ */ React.createElement("p", { className: "import-msg " + (importMsg.ok ? "ok" : "err") }, importMsg.t), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Deload."), " ", data.sessionsSinceDeload, " session", data.sessionsSinceDeload === 1 ? "" : "s", " since your last easy week; a prompt appears every ", DELOAD_EVERY, ". ", deloadDue ? "One's due now." : "", " ", /* @__PURE__ */ React.createElement("button", { className: "inline-btn", onClick: ackDeload }, "Mark deload taken")), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
+    } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Restore from backup."), " Paste a JSON backup to replace everything in the app with it \u2014 the way back after clearing Safari or moving devices."), /* @__PURE__ */ React.createElement("textarea", { className: "import-area", placeholder: "Paste backup JSON here\u2026", value: importText, onChange: (e) => setImportText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: importJSON, disabled: !importText.trim() }, "Restore from this JSON"), importMsg && /* @__PURE__ */ React.createElement("p", { className: "import-msg " + (importMsg.ok ? "ok" : "err") }, importMsg.t), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
       const s = freshState();
       persist(s);
-      setDeload(false);
-      setDraft(freshDraft(s, false));
+      setDraft(freshDraft(s));
       setFeel(defaultFeel());
       setLoad({});
       setConfirmReset(false);
@@ -1120,7 +1072,6 @@ const CSS = `
 .navbtn{flex:1;background:none;border:none;color:var(--muted);font-family:var(--disp);text-transform:uppercase;letter-spacing:1px;font-size:14px;padding:14px 0 18px;cursor:pointer}
 .navbtn.active{color:var(--brass)}
 .app{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-.banner.info{background:#10201c;border-color:#2c5247;color:var(--chalk)}
 .ht-btn.live.prep{border-color:var(--advance)}
 .ht-btn.live.prep .ht-num{font-size:21px;color:var(--advance)}
 .setrow.load .setlab{color:var(--brass)}
@@ -1130,8 +1081,10 @@ const CSS = `
 .import-msg.err{color:var(--stall)}
 .sumrow.regressed{border-left-color:var(--stall)}
 .sumrow.regressed .sum-flag{color:var(--stall)}
-.sumrow.deload{border-left-color:var(--advance)}
-.sumrow.deload .sum-flag{color:var(--advance)}
+.tempo-row{display:flex;align-items:center;gap:6px;margin-top:10px}
+.tempo-lab{font-family:var(--mono);font-size:11px;color:var(--muted);width:48px;flex:none}
+.tempo-btn{flex:1;font-family:var(--body);font-size:12px;padding:8px 4px;border-radius:8px;border:1px solid var(--line);background:#10141a;color:var(--muted);cursor:pointer}
+.tempo-btn.on{border-color:var(--brass);color:var(--brass)}
 .primer{border-color:#3c4250;margin:8px 0 6px}
 .primer summary{color:var(--brass)}
 .primer-body{padding-bottom:12px}
