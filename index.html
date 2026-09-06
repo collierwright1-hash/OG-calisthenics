@@ -322,11 +322,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 <script>
 const { useState, useEffect, useRef } = React;
 const DEFAULTS = {
-  verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chin-ups|reps", "Wide Pull-ups|reps", "L-sit Pull-ups|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "One Arm Pull-ups|reps", "One Arm Chin-ups|reps"],
+  verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chest-to-Bar Pull-ups|reps", "Sternum Pull-ups|reps", "High Pull-ups (waist to bar)|reps", "Muscle-up Negatives|reps", "Band Assisted Muscle-ups|reps", "Strict Muscle-ups|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "Band Assisted One Arm Pull-ups|reps", "One Arm Chin-ups|reps", "One Arm Pull-ups|reps"],
   hspu: ["Pike Plank Hold|hold", "Pike Push-up Negatives|reps", "Bent Arm Pike Holds|hold", "Pike Push-ups|reps", "Elevated Pike Push-ups|reps", "High Box Pike Push-ups|reps", "Wall HSPU (Chest to Wall)|reps", "Wall HSPU (Stomach to Wall)|reps", "Free HSPU (Partial ROM)|reps", "Free HSPU (Full ROM)|reps", "Ring Handstand Push-ups|reps", "90\xB0 Push-ups|reps", "One Arm HSPU Progression|reps"],
   horizontalPull: ["Inverted Rows (high)|reps", "Inverted Rows (mid)|reps", "Inverted Rows (low)|reps", "Ring Rows (feet on floor)|reps", "Ring Rows (feet elevated)|reps", "Wide Rows|reps", "Archer Rows|reps", "Tuck Front Lever|hold", "Advanced Tuck Front Lever|hold", "Tuck Front Lever Rows|reps", "Straddle Front Lever|hold", "Full Front Lever|hold", "Front Lever Rows|reps", "One Arm Front Lever|hold"],
   planche: ["Wall Planche Lean|hold", "Floor Planche Lean|hold", "Plank to Planche Lean|reps", "Frog Stand|hold", "Pseudo Planche Push-ups|reps", "Pseudo Tuck Planche|hold", "Tuck Planche|hold", "Advanced Tuck Planche|hold", "Straddle Planche|hold", "Tuck Planche Push-ups|reps", "Half Lay Planche|hold", "Straddle Planche Push-ups|reps", "Full Planche|hold", "Full Planche Push-ups|reps", "Planche Press to Handstand|reps"],
-  lsit: ["Foot Supported L-sit|hold", "One Leg L-sit|hold", "Tuck L-sit|hold", "L-sit (bent knees)|hold", "L-sit (full)|hold", "L-sit Pulls|reps", "V-sit|hold", "Manna Progression|hold", "Advanced Manna|hold"],
+  lsit: ["Foot Supported L-sit|hold", "Tuck L-sit|hold", "One Leg L-sit|hold", "L-sit (parallettes)|hold", "L-sit (floor)|hold", "Raised L-sit (~100\xB0)|hold", "Low V-sit (~110\xB0)|hold", "V-sit (~125\xB0)|hold", "High V-sit (~140\xB0)|hold", "Straddle Manna|hold", "Low Manna (~160\xB0)|hold", "Manna|hold"],
   pistol: ["Assisted Pistol (Band)|reps", "Box Pistol Squat|reps", "Pistol Negatives|reps", "Heel-Elevated Pistol|reps", "Pistol Squat|reps", "Pistol Squat (elevated)|reps", "Weighted Pistol Squat|reps", "Jump Pistol Squat|reps", "Shrimp Squat|reps", "Advanced Shrimp Squat|reps"],
   posterior: ["Glute Bridges|reps", "Single Leg Glute Bridge|reps", "Hip Hinge (BW)|reps", "Single-Leg Romanian Deadlift (BW)|reps", "Nordic Curl Negatives|reps", "Band Assisted Nordic Curls (heavy)|reps", "Band Assisted Nordic Curls (light)|reps", "Nordic Curls (partial)|reps", "Nordic Curls (full)|reps", "Weighted Nordic Curls|reps", "Single Leg Nordic Negatives|reps", "Single Leg Nordic Curls|reps"]
 };
@@ -488,17 +488,53 @@ async function saveState(s) {
 }
 function freshState() {
   const ladders = seedLadders();
-  const levels = { planche: 6, hspu: 6, lsit: 5, pistol: 4, horizontalPull: 6, verticalPull: 3, posterior: 3 };
+  const levels = { planche: 6, hspu: 6, lsit: 4, pistol: 4, horizontalPull: 6, verticalPull: 3, posterior: 3 };
   const movements = {};
   for (const cat in levels) {
     const rung = ladders[cat][levels[cat] - 1];
     movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
   }
-  return { version: 2, ladders, movements, log: [], activeDraft: null, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+  return { version: 3, ladders, movements, log: [], activeDraft: null, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+}
+const RESEED_V3 = {
+  verticalPull: { "Chin-ups": "Pull-ups", "Wide Pull-ups": "Chest-to-Bar Pull-ups", "L-sit Pull-ups": "Chest-to-Bar Pull-ups" },
+  lsit: { "L-sit (bent knees)": "Tuck L-sit", "L-sit (full)": "L-sit (parallettes)", "L-sit Pulls": "L-sit (floor)", "V-sit": "Low V-sit (~110\xB0)", "Manna Progression": "Low Manna (~160\xB0)", "Advanced Manna": "Manna" }
+};
+function reseedLadder(s, cat, nameMap) {
+  const fresh = DEFAULTS[cat].map((str) => {
+    const [name, type] = str.split("|");
+    return { id: uid(), name, type };
+  });
+  const oldLadder = s.ladders && s.ladders[cat] || [];
+  const oldMv = s.movements && s.movements[cat] || {};
+  const oldIdx = Math.max(0, idxOf(oldLadder, oldMv.exId));
+  const oldRung = oldLadder[oldIdx];
+  const wantName = oldRung ? nameMap[oldRung.name] || oldRung.name : null;
+  let i = fresh.findIndex((r) => r.name === wantName);
+  if (i < 0) i = Math.min(oldIdx, fresh.length - 1);
+  const rung = fresh[i];
+  const same = oldRung && oldRung.name === rung.name && oldRung.type === rung.type;
+  const mv = same ? { ...oldMv, exId: rung.id } : { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
+  return { ladder: fresh, mv };
+}
+function migrateV3(s) {
+  const ladders = { ...s.ladders };
+  const movements = { ...s.movements };
+  const draft = s.activeDraft ? { ...s.activeDraft, sets: { ...s.activeDraft.sets } } : null;
+  for (const cat in RESEED_V3) {
+    const { ladder, mv } = reseedLadder(s, cat, RESEED_V3[cat]);
+    ladders[cat] = ladder;
+    movements[cat] = mv;
+    if (draft) draft.sets[cat] = Array(SETS).fill(mv.target);
+  }
+  return { ...s, version: 3, ladders, movements, activeDraft: draft };
 }
 function migrate(s) {
   if (!s) return freshState();
-  if (s.version >= 2 && s.ladders) return s;
+  if (s.version >= 2 && s.ladders) return (s.version || 0) >= 3 ? s : migrateV3(s);
+  return migrateV3(migrateV2(s));
+}
+function migrateV2(s) {
   const ladders = seedLadders();
   const movements = {};
   for (const cat in META) {
