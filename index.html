@@ -324,7 +324,9 @@ const { useState, useEffect, useRef } = React;
 const DEFAULTS = {
   verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chest-to-Bar Pull-ups|reps", "Sternum Pull-ups|reps", "High Pull-ups (waist to bar)|reps", "Muscle-up Negatives|reps", "Band Assisted Muscle-ups|reps", "Strict Muscle-ups|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "Band Assisted One Arm Pull-ups|reps", "One Arm Chin-ups|reps", "One Arm Pull-ups|reps"],
   hspu: ["Pike Plank Hold|hold", "Pike Push-up Negatives|reps", "Bent Arm Pike Holds|hold", "Pike Push-ups|reps", "Elevated Pike Push-ups|reps", "High Box Pike Push-ups|reps", "Wall HSPU (Chest to Wall)|reps", "Wall HSPU (Stomach to Wall)|reps", "Free HSPU (Partial ROM)|reps", "Free HSPU (Full ROM)|reps", "Ring Handstand Push-ups|reps", "90\xB0 Push-ups|reps", "One Arm HSPU Progression|reps"],
-  horizontalPull: ["Inverted Rows (high)|reps", "Inverted Rows (mid)|reps", "Inverted Rows (low)|reps", "Ring Rows (feet on floor)|reps", "Ring Rows (feet elevated)|reps", "Wide Rows|reps", "Archer Rows|reps", "Tuck Front Lever|hold", "Advanced Tuck Front Lever|hold", "Tuck Front Lever Rows|reps", "Straddle Front Lever|hold", "Full Front Lever|hold", "Front Lever Rows|reps", "One Arm Front Lever|hold"],
+  rows: ["Inverted Rows (high)|reps", "Inverted Rows (mid)|reps", "Inverted Rows (low)|reps", "Ring Rows (feet on floor)|reps", "Ring Rows (feet elevated)|reps", "Wide Rows|reps", "Archer Rows|reps", "Archer Rows (feet elevated)|reps", "One Arm Row Negatives|reps", "One Arm Rows (assisted)|reps", "One Arm Rows|reps"],
+  dips: ["Support Hold (bars)|hold", "Bench Dips|reps", "Bar Dip Negatives|reps", "Parallel Bar Dips|reps", "Straight Bar Dips|reps", "Ring Support Hold (RTO)|hold", "Ring Dip Negatives|reps", "Ring Dips|reps", "Ring Dips (RTO at top)|reps", "L-sit Ring Dips|reps", "Bulgarian Ring Dips|reps", "Ring Dips to Straight-Arm Support|reps"],
+  frontLever: ["Tuck Front Lever|hold", "Advanced Tuck Front Lever|hold", "Tuck Front Lever Rows|reps", "Half Lay Front Lever|hold", "Straddle Front Lever|hold", "Straddle Front Lever Rows|reps", "Full Front Lever|hold", "Front Lever Rows|reps", "Front Lever Pull-ups|reps", "One Arm Front Lever|hold"],
   planche: ["Wall Planche Lean|hold", "Floor Planche Lean|hold", "Plank to Planche Lean|reps", "Frog Stand|hold", "Pseudo Planche Push-ups|reps", "Pseudo Tuck Planche|hold", "Tuck Planche|hold", "Advanced Tuck Planche|hold", "Straddle Planche|hold", "Tuck Planche Push-ups|reps", "Half Lay Planche|hold", "Straddle Planche Push-ups|reps", "Full Planche|hold", "Full Planche Push-ups|reps", "Planche Press to Handstand|reps"],
   lsit: ["Foot Supported L-sit|hold", "Tuck L-sit|hold", "One Leg L-sit|hold", "L-sit (parallettes)|hold", "L-sit (floor)|hold", "Raised L-sit (~100\xB0)|hold", "Low V-sit (~110\xB0)|hold", "V-sit (~125\xB0)|hold", "High V-sit (~140\xB0)|hold", "Straddle Manna|hold", "Low Manna (~160\xB0)|hold", "Manna|hold"],
   pistol: ["Assisted Pistol (Band)|reps", "Box Pistol Squat|reps", "Pistol Negatives|reps", "Heel-Elevated Pistol|reps", "Pistol Squat|reps", "Pistol Squat (elevated)|reps", "Weighted Pistol Squat|reps", "Jump Pistol Squat|reps", "Shrimp Squat|reps", "Advanced Shrimp Squat|reps"],
@@ -333,13 +335,15 @@ const DEFAULTS = {
 const META = {
   verticalPull: { name: "Vertical Pull", block: 1 },
   hspu: { name: "Handstand Push-up", block: 1 },
-  horizontalPull: { name: "Horizontal Pull", block: 1 },
+  rows: { name: "Rows", block: 1 },
+  dips: { name: "Dips", block: 1 },
+  frontLever: { name: "Front Lever", block: 1 },
   planche: { name: "Planche", block: 1 },
   lsit: { name: "L-sit", block: 2 },
   pistol: { name: "Pistol Squat", block: 2 },
   posterior: { name: "Posterior Chain", block: 2 }
 };
-const PAIRS = [["verticalPull", "hspu"], ["horizontalPull", "planche"]];
+const PAIRS = [["verticalPull", "hspu"], ["rows", "dips"], ["frontLever", "planche"]];
 const BLOCK2 = ["lsit", "pistol", "posterior"];
 const ORDER = [...PAIRS.flat(), ...BLOCK2];
 const SETS = 3;
@@ -350,12 +354,98 @@ const STAGES = [
   { key: "eccentric", label: "Slow eccentric \xB7 3s lowering" },
   { key: "paused", label: "Paused \xB7 1\u20132s at hardest point" }
 ];
-const FLOW_POOL = {
-  full: ["Beast shoulder taps", "Bear crawl \u2014 fwd / back", "Crab reach (alternating)", "Scorpion reach", "Cossack flow", "Inchworm to push-up", "Lateral squat-walk", "Deep squat + thoracic reach", "Sit-through (alternating)", "Frogger hops", "Push-up to down-dog", "Ape lateral travel"],
-  upper: ["Beast shoulder taps", "Sit-through (alternating)", "Push-up to down-dog", "Crab reach", "Inchworm to push-up", "Plank shoulder taps"],
-  lower: ["Cossack flow", "Lateral squat-walk", "Deep squat + thoracic reach", "Ape lateral travel", "Frogger hops", "Single-leg deadlift reach"],
-  mobility: ["Scorpion reach", "Deep squat + thoracic reach", "Crab reach", "Thoracic windmill", "90/90 transitions", "World's greatest stretch flow"]
+const D = (n, d, s) => ({ n, d, s: s || 0 });
+const SKILL_WARMUP = [D("Wrist circles + wrist push-up rocks", "90s", 90), D("Shoulder dislocates or band pull-aparts", "60s", 60), D("Scap push-ups + scap pulls", "10 each"), D("Cat-cow + thoracic rotations", "45s", 45), D("Chest-to-wall handstand, easy", "20s", 20)];
+const SKILL_POOLS = {
+  balance: { name: "Handstand & press", levels: [
+    [D("Chest-to-wall handstand", "3 \xD7 30s", 30), D("Wall hollow-body shifts (shoulders over hands)", "3 \xD7 10"), D("Kick-up to wall, back-to-wall", "8 attempts")],
+    [D("Chest-to-wall handstand", "3 \xD7 45s", 45), D("Heel pulls \u2014 pull heels off the wall, hold", "3 \xD7 5"), D("Kick-ups to wall, catch balance before the wall", "8 attempts")],
+    [D("Toe pulls, back-to-wall", "3 \xD7 5"), D("Chest-to-wall handstand, one heel off", "3 \xD7 20s", 20), D("Freestanding kick-ups", "10 attempts")],
+    [D("Freestanding kick-ups, aim 5s", "10 attempts"), D("Heel pulls into freestanding", "5 attempts"), D("Chest-to-wall handstand", "2 \xD7 45s", 45)],
+    [D("Freestanding holds", "6 \xD7 10s", 10), D("Heel pulls", "3 \xD7 5"), D("Handstand walk toward wall, tiny steps", "3 attempts")],
+    [D("Freestanding holds", "4 \xD7 20s", 20), D("Freestanding shoulder shifts, weight fwd / back", "3 \xD7 10"), D("Kick-up consistency", "10 attempts")],
+    [D("Freestanding holds", "3 \xD7 30s", 30), D("Straddle \u2194 pike shape changes in handstand", "3 \xD7 5"), D("Pike compression lifts, hands beside knees", "3 \xD7 10")],
+    [D("Pike press negatives, feet on box", "3 \xD7 3"), D("Freestanding holds", "3 \xD7 30s", 30), D("Elevated pike press attempts", "5 attempts")],
+    [D("Straddle press negatives, slow to straddle L", "3 \xD7 3"), D("Band-assisted straddle press", "3 \xD7 3"), D("Freestanding holds", "2 \xD7 30s", 30)],
+    [D("Straddle press to handstand", "5 \xD7 1\u20132"), D("Press negatives", "3 \xD7 3"), D("Freestanding holds", "2 \xD7 30s", 30)]
+  ] },
+  scaps: { name: "Scapular strength", levels: [
+    [D("Scap pull-ups", "3 \xD7 8"), D("Scap push-ups", "3 \xD7 10"), D("Ring support hold, neutral", "3 \xD7 15s", 15)],
+    [D("Active hang", "3 \xD7 20s", 20), D("Ring support hold, RTO", "3 \xD7 15s", 15), D("Arch hang \u2192 active hang", "3 \xD7 8")],
+    [D("German hang, assisted", "3 \xD7 15s", 15), D("RTO push-up plank", "3 \xD7 20s", 20), D("Scap pull-ups", "3 \xD7 10")],
+    [D("Skin-the-cat", "3 \xD7 3"), D("Ring support hold, RTO", "3 \xD7 30s", 30), D("Ring RTO L-support", "3 \xD7 10s", 10)],
+    [D("German hang", "3 \xD7 20s", 20), D("RTO push-up plank, elbows locked", "3 \xD7 30s", 30), D("Tuck back lever, rings", "3 \xD7 10s", 10)],
+    [D("Skin-the-cat to German hang", "3 \xD7 5"), D("Ring RTO support to L-sit", "3 \xD7 15s", 15), D("Tuck back lever", "3 \xD7 15s", 15)]
+  ] },
+  wrists: { name: "Wrists", levels: [
+    [D("Wrist push-up series \u2014 palms, fists, backs", "2 \xD7 8 each"), D("Fingertip plank", "3 \xD7 15s", 15), D("Wrist extension holds, fingers back", "3 \xD7 20s", 20)],
+    [D("Wrist push-up series", "3 \xD7 10 each"), D("Fingertip push-up holds, top", "3 \xD7 15s", 15), D("Back-of-hand plank", "3 \xD7 15s", 15)],
+    [D("First-knuckle push-ups", "3 \xD7 8"), D("Fingertip push-ups, partial", "3 \xD7 5"), D("Back-of-hand plank", "3 \xD7 20s", 20)],
+    [D("Fingertip push-ups", "3 \xD7 8"), D("Palm-up wrist push-ups", "3 \xD7 8"), D("Planche-lean wrist loading", "3 \xD7 20s", 20)]
+  ] },
+  mobility: { name: "Mobility", pool: [D("Bridge", "3 \xD7 20s", 20), D("Pancake, active", "2 \xD7 60s", 60), D("Pike compression lifts", "3 \xD7 10"), D("Shoulder extension, hands on table behind", "2 \xD7 45s", 45), D("Deep squat, heels down", "2 \xD7 60s", 60), D("Couch stretch", "60s / side", 60), D("Jefferson curl", "2 \xD7 8"), D("Thoracic windmill", "2 \xD7 8 / side"), D("Straddle sit + compression", "2 \xD7 45s", 45), D("Active pike stretch", "2 \xD7 45s", 45)] },
+  core: { name: "Core", pool: [D("Hollow body hold", "3 \xD7 30s", 30), D("Arch hold", "3 \xD7 30s", 30), D("Ab wheel", "3 \xD7 10"), D("Side plank", "2 \xD7 30s / side", 30), D("Hanging leg raises", "3 \xD7 8"), D("Dragon flag negatives", "3 \xD7 5"), D("L-sit compression lifts", "3 \xD7 8"), D("Hollow rocks", "3 \xD7 20")] }
 };
+const SKILL_ROTATION = [["balance", "wrists"], ["scaps", "mobility"], ["balance", "core"], ["wrists", "scaps"], ["balance", "mobility"], ["scaps", "core"]];
+const SKILL_LEVELED = ["balance", "scaps", "wrists"];
+const SKILL_CLEAN_TO_ADVANCE = 3;
+function mulberry32(a) {
+  return function() {
+    a |= 0;
+    a = a + 1831565813 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pickN(rnd, arr, n) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, n);
+}
+function freshSkill() {
+  return { count: 0, levels: { balance: 0, scaps: 0, wrists: 0 }, streak: { balance: 0, scaps: 0, wrists: 0 }, log: [], draft: null };
+}
+function buildSkillPlan(skill) {
+  const count = skill.count || 0;
+  const emph = SKILL_ROTATION[count % SKILL_ROTATION.length];
+  const rnd = mulberry32(count * 7919 + 17);
+  const blocks = emph.map((key) => {
+    const p = SKILL_POOLS[key];
+    if (p.levels) {
+      const lvl = Math.max(0, Math.min(p.levels.length - 1, (skill.levels || {})[key] || 0));
+      return { key, name: p.name, level: lvl + 1, max: p.levels.length, items: p.levels[lvl] };
+    }
+    return { key, name: p.name, level: null, max: null, items: pickN(rnd, p.pool, 3) };
+  });
+  const used = new Set(blocks.flatMap((b) => b.items.map((x) => x.n)));
+  const cooldown = pickN(rnd, SKILL_POOLS.mobility.pool.filter((x) => !used.has(x.n)), 2);
+  return { count, emph, blocks, cooldown, done: {}, quality: {}, startedAt: Date.now() };
+}
+function applySkillResult(skill, plan) {
+  const levels = { ...skill.levels }, streak = { ...skill.streak }, notes = [];
+  for (const b of plan.blocks) {
+    if (b.level == null) continue;
+    const q = plan.quality[b.key] || "okay";
+    if (q === "clean") {
+      streak[b.key] = (streak[b.key] || 0) + 1;
+      if (streak[b.key] >= SKILL_CLEAN_TO_ADVANCE && (levels[b.key] || 0) < b.max - 1) {
+        levels[b.key] = (levels[b.key] || 0) + 1;
+        streak[b.key] = 0;
+        notes.push({ name: b.name, t: "\u2192 level " + (levels[b.key] + 1), kind: "advanced" });
+      } else if ((levels[b.key] || 0) >= b.max - 1) notes.push({ name: b.name, t: "top level \u2014 clean", kind: "maxed" });
+      else notes.push({ name: b.name, t: "clean " + streak[b.key] + "/" + SKILL_CLEAN_TO_ADVANCE, kind: "progressed" });
+    } else if (q === "rough") {
+      streak[b.key] = 0;
+      notes.push({ name: b.name, t: "rough \u2014 streak reset", kind: "held" });
+    } else notes.push({ name: b.name, t: "steady", kind: "held" });
+  }
+  const entry = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), emph: plan.emph, quality: plan.quality, done: Object.keys(plan.done).filter((k) => plan.done[k]).length };
+  return { skill: { ...skill, count: (skill.count || 0) + 1, levels, streak, log: [...skill.log || [], entry], draft: null }, notes };
+}
 const uid = () => Math.random().toString(36).slice(2, 9);
 function rangeFor(cat, type) {
   if (type === "hold") return { min: 8, max: 15, step: 1, unit: "sec" };
@@ -488,13 +578,61 @@ async function saveState(s) {
 }
 function freshState() {
   const ladders = seedLadders();
-  const levels = { planche: 6, hspu: 6, lsit: 4, pistol: 4, horizontalPull: 6, verticalPull: 3, posterior: 3 };
+  const levels = { planche: 6, hspu: 6, lsit: 4, pistol: 4, rows: 6, dips: 4, frontLever: 1, verticalPull: 3, posterior: 3 };
   const movements = {};
   for (const cat in levels) {
     const rung = ladders[cat][levels[cat] - 1];
     movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
   }
-  return { version: 3, ladders, movements, log: [], activeDraft: null, sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+  return { version: 4, ladders, movements, log: [], activeDraft: null, skill: freshSkill(), sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+}
+function freshRung(cat, i) {
+  const rung = DEFAULTS[cat][i];
+  const [name, type] = rung.split("|");
+  return { id: uid(), name, type };
+}
+function migrateV4(s) {
+  const ladders = { ...s.ladders }, movements = { ...s.movements };
+  const mk = (cat) => DEFAULTS[cat].map((_, i) => freshRung(cat, i));
+  const old = ladders.horizontalPull || [];
+  const oldMv = movements.horizontalPull || {};
+  const oldIdx = Math.max(0, idxOf(old, oldMv.exId));
+  const oldRung = old[oldIdx];
+  const oldName = oldRung ? oldRung.name : "";
+  const wasLever = /Lever/.test(oldName);
+  const place = (cat, ladder, i) => {
+    const rung = ladder[i];
+    const same = oldRung && oldRung.name === rung.name && oldRung.type === rung.type;
+    movements[cat] = same ? { ...oldMv, exId: rung.id } : { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
+    ladders[cat] = ladder;
+  };
+  if (!ladders.rows) {
+    const rows = mk("rows");
+    let ri = rows.findIndex((r) => r.name === oldName);
+    if (ri < 0) ri = wasLever ? rows.findIndex((r) => r.name === "Archer Rows") : Math.min(oldIdx, 6);
+    place("rows", rows, Math.max(0, ri));
+  }
+  if (!ladders.frontLever) {
+    const fl = mk("frontLever");
+    let fi = fl.findIndex((r) => r.name === oldName);
+    place("frontLever", fl, Math.max(0, fi));
+  }
+  if (!ladders.dips) {
+    const dips = mk("dips");
+    const rung = dips[3];
+    ladders.dips = dips;
+    movements.dips = { exId: rung.id, target: rangeFor("dips", rung.type).min, stage: 0, holds: 0, misses: 0 };
+  }
+  delete ladders.horizontalPull;
+  delete movements.horizontalPull;
+  const log = (s.log || []).map((sess) => ({ ...sess, items: sess.items.map((it) => it.cat === "horizontalPull" ? { ...it, cat: /Lever/.test(it.name) ? "frontLever" : "rows" } : it) }));
+  let draft = s.activeDraft ? { ...s.activeDraft, sets: { ...s.activeDraft.sets }, feel: { ...s.activeDraft.feel || {} } } : null;
+  if (draft) {
+    delete draft.sets.horizontalPull;
+    delete draft.feel.horizontalPull;
+    for (const cat of ["rows", "dips", "frontLever"]) if (!draft.sets[cat]) draft.sets[cat] = Array(SETS).fill(movements[cat].target);
+  }
+  return { ...s, version: 4, ladders, movements, log, activeDraft: draft, skill: s.skill || freshSkill() };
 }
 const RESEED_V3 = {
   verticalPull: { "Chin-ups": "Pull-ups", "Wide Pull-ups": "Chest-to-Bar Pull-ups", "L-sit Pull-ups": "Chest-to-Bar Pull-ups" },
@@ -531,8 +669,10 @@ function migrateV3(s) {
 }
 function migrate(s) {
   if (!s) return freshState();
-  if (s.version >= 2 && s.ladders) return (s.version || 0) >= 3 ? s : migrateV3(s);
-  return migrateV3(migrateV2(s));
+  if (!(s.version >= 2 && s.ladders)) s = migrateV2(s);
+  if ((s.version || 0) < 3) s = migrateV3(s);
+  if ((s.version || 0) < 4) s = migrateV4(s);
+  return s;
 }
 function migrateV2(s) {
   const ladders = seedLadders();
@@ -612,35 +752,7 @@ function lastFor(data, cat) {
   }
   return null;
 }
-function travelSub(cat, name, bar) {
-  switch (cat) {
-    case "verticalPull":
-      return bar ? { ex: "Pull-ups (or negatives) \u2014 submax", d: "3 sets near your level" } : { ex: "Doorway iso pulls / towel rows", d: "3 sets" };
-    case "horizontalPull":
-      return bar ? { ex: "Feet-on-floor bar rows", d: "3 sets" } : { ex: "Table rows (sturdy desk)", d: "3 sets \xB7 maintenance" };
-    case "hspu":
-      return { ex: /Wall|Free|Pike/.test(name) ? name : "Pike / wall push-ups", d: "3 sets" };
-    case "planche":
-      return { ex: /Push|Lean|Tuck|Frog|Planche/.test(name) ? name : "Planche lean", d: "3 \xD7 hold/reps" };
-    case "lsit":
-      return { ex: /L-sit|V-sit|Manna/.test(name) ? name : "L-sit (floor)", d: "3 \xD7 hold" };
-    case "pistol":
-      return { ex: name, d: "3 sets" };
-    case "posterior":
-      return { ex: /Nordic/.test(name) ? "Nordic curl (feet under bed)" : name, d: "3 sets" };
-    default:
-      return { ex: name, d: "3 sets" };
-  }
-}
-function buildFlow(focus, rounds, work) {
-  const pool = [...FLOW_POOL[focus] || FLOW_POOL.full];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return { focus, rounds, work, items: pool.slice(0, Math.min(6, pool.length)) };
-}
-function HoldTimer({ seconds }) {
+function HoldTimer({ seconds, compact }) {
   const [rem, setRem] = useState(null);
   const [prep, setPrep] = useState(null);
   const raf = useRef(null);
@@ -702,9 +814,10 @@ function HoldTimer({ seconds }) {
     setRem(null);
     setPrep(null);
   };
-  if (rem === null && prep === null) return /* @__PURE__ */ React.createElement("button", { className: "ht-btn", onClick: start }, "Start ", seconds, "s hold");
-  if (prep !== null) return /* @__PURE__ */ React.createElement("button", { className: "ht-btn live prep", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, "Get set \u2014 ", prep), /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to cancel"));
-  return /* @__PURE__ */ React.createElement("button", { className: "ht-btn live", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, rem), /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to stop"));
+  const cls = compact ? "ht-btn compact" : "ht-btn";
+  if (rem === null && prep === null) return /* @__PURE__ */ React.createElement("button", { className: cls, onClick: start }, compact ? "\u25B6 " + seconds + "s" : ["Start ", seconds, "s hold"]);
+  if (prep !== null) return /* @__PURE__ */ React.createElement("button", { className: cls + " live prep", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, compact ? prep : "Get set \u2014 " + prep), !compact && /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to cancel"));
+  return /* @__PURE__ */ React.createElement("button", { className: cls + " live", onClick: stop }, /* @__PURE__ */ React.createElement("span", { className: "ht-num" }, rem), !compact && /* @__PURE__ */ React.createElement("span", { className: "ht-lab" }, "tap to stop"));
 }
 function Stepper({ value, unit, onChange, step = 1, min = 0 }) {
   return /* @__PURE__ */ React.createElement("div", { className: "stepper" }, /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(Math.max(min, value - step)) }, "\u2013"), /* @__PURE__ */ React.createElement("div", { className: "readout" }, /* @__PURE__ */ React.createElement("span", { className: "rd-num" }, value), /* @__PURE__ */ React.createElement("span", { className: "rd-unit" }, unit)), /* @__PURE__ */ React.createElement("button", { className: "step", onClick: () => onChange(value + step) }, "+"));
@@ -721,6 +834,10 @@ function Sparkline({ items }) {
   const pts = scores.map((s, i) => `${i / (n - 1) * W},${H - (s - min) / span * (H - 6) - 3}`).join(" ");
   return /* @__PURE__ */ React.createElement("svg", { className: "spark", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none" }, /* @__PURE__ */ React.createElement("polyline", { points: pts, fill: "none", stroke: "var(--brass)", strokeWidth: "2", vectorEffect: "non-scaling-stroke" }));
 }
+function SkillItem({ k, it, plan, onToggle }) {
+  const on = !!plan.done[k];
+  return /* @__PURE__ */ React.createElement("div", { className: "sk-item" + (on ? " on" : "") }, /* @__PURE__ */ React.createElement("button", { className: "sk-check" + (on ? " on" : ""), onClick: () => onToggle(k) }, on ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { className: "sk-text" }, it.n, /* @__PURE__ */ React.createElement("small", null, it.d)), it.s ? /* @__PURE__ */ React.createElement(HoldTimer, { seconds: it.s, compact: true }) : null);
+}
 function App() {
   const [data, setData] = useState(null);
   const [view, setView] = useState("today");
@@ -729,7 +846,7 @@ function App() {
   const [feel, setFeel] = useState({});
   const [summary, setSummary] = useState(null);
   const [expanded, setExpanded] = useState(null);
-  const [travel, setTravel] = useState({ mode: "maintain", bar: true, focus: "full", rounds: 3, work: 40, out: null });
+  const [skNotes, setSkNotes] = useState(null);
   const [exportText, setExportText] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [editCat, setEditCat] = useState(null);
@@ -928,12 +1045,12 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { className: "card" + (lead ? " lead" : "") }, /* @__PURE__ */ React.createElement("div", { className: "card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, lead && /* @__PURE__ */ React.createElement("span", { className: "tag" }, "fresh")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name), stageLabel && /* @__PURE__ */ React.createElement("div", { className: "stage-cue" }, stageLabel)), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, rung.type === "hold" ? "HOLD" : "L" + (rungOf(data, cat).index + 1))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), /* @__PURE__ */ React.createElement("div", { className: "target" }, "target ", /* @__PURE__ */ React.createElement("b", null, draft[cat].length, "\xD7", tgt, rung.type === "hold" ? "s" : ""), last && /* @__PURE__ */ React.createElement("span", { className: "rng" }, "last ", last.sets.join("\xB7"), last.exType === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "sets" }, draft[cat].map((v, i) => /* @__PURE__ */ React.createElement("div", { className: "setrow", key: i }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Set ", i + 1), /* @__PURE__ */ React.createElement(Stepper, { value: v, unit: rung.type === "hold" ? "sec" : "reps", onChange: (nv) => setSet(cat, i, nv) }))), loadable && /* @__PURE__ */ React.createElement("div", { className: "setrow load", key: "load" }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Load"), /* @__PURE__ */ React.createElement(Stepper, { value: load[cat] || 0, unit: "lb", step: 5, onChange: (nv) => setLoadFor(cat, nv) }))), rung.type === "hold" && /* @__PURE__ */ React.createElement(HoldTimer, { seconds: tgt }), /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["easy", "on", "grindy"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: "feel-pill" + (f === k ? " on " + k : ""), onClick: () => setFeelFor(cat, k) }, k === "easy" ? "Easy" : k === "on" ? "On target" : "Grindy"))));
   }
   function renderPrimer() {
-    return /* @__PURE__ */ React.createElement("details", { className: "finisher primer" }, /* @__PURE__ */ React.createElement("summary", null, "Handstand primer ", /* @__PURE__ */ React.createElement("em", null, "\u2014 fresh, before you load \xB7 skill, not strength")), /* @__PURE__ */ React.createElement("div", { className: "primer-body" }, /* @__PURE__ */ React.createElement("p", { className: "note" }, "Practice the balance fresh and brief \u2014 stop well short of fatigue. Nothing here is logged or autoregulated; it's the foundation under your free HSPU and presses."), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Wrist + shoulder prep \u2014 60\u201390s"), /* @__PURE__ */ React.createElement("li", null, "Wall handstand \u2014 chest-to-wall, hollow line, breathe"), /* @__PURE__ */ React.createElement("li", null, "Kick-up to balance \u2014 5\u20138 quality attempts, freestanding")), /* @__PURE__ */ React.createElement(HoldTimer, { seconds: 30 })));
+    return /* @__PURE__ */ React.createElement("details", { className: "finisher primer" }, /* @__PURE__ */ React.createElement("summary", null, "Handstand primer ", /* @__PURE__ */ React.createElement("em", null, "\u2014 2 min, fresh \xB7 balance practice proper lives on Off day")), /* @__PURE__ */ React.createElement("div", { className: "primer-body" }, /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Wrist circles \u2014 30s"), /* @__PURE__ */ React.createElement("li", null, "Chest-to-wall handstand, hollow line \u2014 30s"), /* @__PURE__ */ React.createElement("li", null, "Kick-ups to balance \u2014 3\u20135 attempts, stop fresh")), /* @__PURE__ */ React.createElement(HoldTimer, { seconds: 30 })));
   }
   function renderToday() {
     if (phase === "done") return renderSummary();
     const est = Math.round(PAIRS.flat().length * SETS * 1.6 + BLOCK2.length * SETS * 1.3 + 6);
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Full body \xB7 \u2248 " + est + " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), renderPrimer(), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("details", { className: "finisher" }, /* @__PURE__ */ React.createElement("summary", null, "Core / compression finisher ", /* @__PURE__ */ React.createElement("em", null, "\u2014 optional, 2\xD7/week")), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Ab-wheel \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Back arch \u2014 3 \xD7 15"), /* @__PURE__ */ React.createElement("li", null, "Seated pike compression \u2014 3 \xD7 15s"), /* @__PURE__ */ React.createElement("li", null, "Side plank lift \u2014 3 \xD7 15 / side"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Today", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Full body \xB7 \u2248 " + est + " min")), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Run the pairs alternating \u2014 press set, pull set \u2014 rest on your watch (~2:00 here, ~75s below). Tag each move Easy / On target / Grindy so it progresses you correctly.")), renderPrimer(), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 1 \u2014 Strength, paired & fresh", /* @__PURE__ */ React.createElement("span", null, "rest ~2:00 \xB7 watch")), PAIRS.map((pair, i) => /* @__PURE__ */ React.createElement("div", { className: "pair", key: i }, /* @__PURE__ */ React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " \xB7 alternate sets"), pair.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: i === 0 })))), /* @__PURE__ */ React.createElement("div", { className: "block-label" }, "Block 2 \u2014 Skill & lower", /* @__PURE__ */ React.createElement("span", null, "rest ~75s \xB7 watch")), BLOCK2.map((cat) => /* @__PURE__ */ React.createElement(MovementCard, { key: cat, cat, lead: false })), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSession }, "Finish session"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Saved automatically as you log \u2014 finishing updates every movement and clears the card."));
   }
   function renderSummary() {
     const label = { advanced: "Leveled up", intensified: "Intensified", progressed: "Progressed", held: "Hold \u2014 repeat", consolidate: "Consolidate", maxed: "Top of ladder", regressed: "Stepped back" };
@@ -944,7 +1061,7 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Progress", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Ladders, trends & overrides"))), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
       setView("editor");
       setEditCat(null);
-    } }, "Edit progressions"), ORDER.map((cat) => {
+    } }, "Edit progressions"), renderSkillCard(), ORDER.map((cat) => {
       const { ladder, index, rung } = rungOf(data, cat);
       const mv = data.movements[cat];
       const stalled = (mv.holds || 0) >= 3;
@@ -960,16 +1077,69 @@ function App() {
       return /* @__PURE__ */ React.createElement("div", { className: "ecard", key: cat }, /* @__PURE__ */ React.createElement("div", { className: "ecard-head", onClick: () => setEditCat(open ? null : cat) }, /* @__PURE__ */ React.createElement("span", null, META[cat].name), /* @__PURE__ */ React.createElement("b", null, ladder.length, " steps ", open ? "\u25B4" : "\u25BE")), open && /* @__PURE__ */ React.createElement("div", { className: "erungs" }, ladder.map((rr, i) => /* @__PURE__ */ React.createElement("div", { className: "erung", key: rr.id }, /* @__PURE__ */ React.createElement("input", { className: "ename", value: rr.name, onChange: (e) => renameRung(cat, i, e.target.value) }), /* @__PURE__ */ React.createElement("select", { className: "etype", value: rr.type, onChange: (e) => retypeRung(cat, i, e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "reps" }, "reps"), /* @__PURE__ */ React.createElement("option", { value: "hold" }, "hold")), /* @__PURE__ */ React.createElement("div", { className: "erow-btns" }, /* @__PURE__ */ React.createElement("button", { onClick: () => moveRung(cat, i, -1), disabled: i === 0 }, "\u2191"), /* @__PURE__ */ React.createElement("button", { onClick: () => moveRung(cat, i, 1), disabled: i === ladder.length - 1 }, "\u2193"), /* @__PURE__ */ React.createElement("button", { onClick: () => insertBelow(cat, i) }, "+step"), /* @__PURE__ */ React.createElement("button", { className: "del", onClick: () => delRung(cat, i) }, "\u2715"))))));
     }), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Tip: to soften a big jump, insert a step between two rungs (lighter band, negatives, partial ROM) and rename it. Your current position stays put."));
   }
-  function renderTravel() {
-    const out = travel.out;
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Travel", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Hotel room \xB7 no equipment"))), /* @__PURE__ */ React.createElement("div", { className: "seg" }, /* @__PURE__ */ React.createElement("button", { className: travel.mode === "maintain" ? "on" : "", onClick: () => setTravel({ ...travel, mode: "maintain", out: null }) }, "Maintain"), /* @__PURE__ */ React.createElement("button", { className: travel.mode === "flow" ? "on" : "", onClick: () => setTravel({ ...travel, mode: "flow", out: null }) }, "Movement flow")), travel.mode === "maintain" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("label", { className: "bar-toggle" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: travel.bar, onChange: (e) => setTravel({ ...travel, bar: e.target.checked, out: null }) }), " Pull-up bar available"), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => setTravel({ ...travel, out: { kind: "maintain" } }) }, "Build from my current levels"), out?.kind === "maintain" && /* @__PURE__ */ React.createElement("div", { className: "travel-out" }, /* @__PURE__ */ React.createElement("div", { className: "to-title" }, "Strength Maintenance"), /* @__PURE__ */ React.createElement("div", { className: "to-sub" }, travel.bar ? "Bar available \xB7 holds your home progressions" : "No bar \xB7 pulls drop to maintenance"), ORDER.map((cat) => {
-      const { rung } = rungOf(data, cat);
-      const s = travelSub(cat, rung.name, travel.bar);
-      return /* @__PURE__ */ React.createElement("div", { className: "to-item", key: cat }, /* @__PURE__ */ React.createElement("span", null, META[cat].name, " \u2014 ", s.ex), /* @__PURE__ */ React.createElement("b", null, s.d));
-    }), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Not auto-logged. If you push pull-ups on the road, bump Vertical Pull on Progress."))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, ["full", "upper", "lower", "mobility"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: travel.focus === k ? "on" : "", onClick: () => setTravel({ ...travel, focus: k, out: null }) }, k))), /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, [2, 3, 4].map((n) => /* @__PURE__ */ React.createElement("button", { key: n, className: travel.rounds === n ? "on" : "", onClick: () => setTravel({ ...travel, rounds: n, out: null }) }, n, " rounds"))), /* @__PURE__ */ React.createElement("div", { className: "seg sm" }, [30, 40, 45].map((w) => /* @__PURE__ */ React.createElement("button", { key: w, className: travel.work === w ? "on" : "", onClick: () => setTravel({ ...travel, work: w, out: null }) }, w, "s"))), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => setTravel({ ...travel, out: buildFlow(travel.focus, travel.rounds, travel.work) }) }, "Generate flow"), out?.items && /* @__PURE__ */ React.createElement("div", { className: "travel-out" }, /* @__PURE__ */ React.createElement("div", { className: "to-title" }, "Movement Flow \xB7 ", out.focus), /* @__PURE__ */ React.createElement("div", { className: "to-sub" }, out.rounds, " rounds \xB7 ", out.work, "s each \xB7 short rest between moves \xB7 regenerate for a new draw"), out.items.map((m, i) => /* @__PURE__ */ React.createElement("div", { className: "to-item", key: i }, /* @__PURE__ */ React.createElement("span", null, m), /* @__PURE__ */ React.createElement("b", null, out.work, "s"))))));
+  function skillState() {
+    return data.skill || freshSkill();
+  }
+  function ensureSkillPlan() {
+    const sk = skillState();
+    if (sk.draft) return sk.draft;
+    const plan = buildSkillPlan(sk);
+    persist({ ...data, skill: { ...sk, draft: plan } });
+    return plan;
+  }
+  function patchSkillPlan(fn) {
+    const sk = skillState();
+    if (!sk.draft) return;
+    const plan = { ...sk.draft, done: { ...sk.draft.done }, quality: { ...sk.draft.quality } };
+    fn(plan);
+    persist({ ...data, skill: { ...sk, draft: plan } });
+  }
+  const toggleSkillDone = (k) => patchSkillPlan((p) => {
+    p.done[k] = !p.done[k];
+  });
+  const setSkillQuality = (key, q) => patchSkillPlan((p) => {
+    p.quality[key] = q;
+  });
+  function finishSkill() {
+    const sk = skillState();
+    if (!sk.draft) return;
+    const { skill, notes } = applySkillResult(sk, sk.draft);
+    persist({ ...data, skill });
+    setSkNotes(notes);
+  }
+  function regenSkillPlan() {
+    const sk = skillState();
+    persist({ ...data, skill: { ...sk, draft: null } });
+  }
+  function setSkillLevel(key, lvl) {
+    const sk = skillState();
+    const max = SKILL_POOLS[key].levels.length;
+    const v = Math.max(0, Math.min(max - 1, lvl));
+    const draft = sk.draft && sk.draft.emph.includes(key) ? null : sk.draft;
+    persist({ ...data, skill: { ...sk, levels: { ...sk.levels, [key]: v }, streak: { ...sk.streak, [key]: 0 }, draft } });
+  }
+  function renderSkill() {
+    const sk = skillState();
+    if (skNotes) {
+      const label = { advanced: "Leveled up", progressed: "Streak", held: "Hold", maxed: "Top level" };
+      return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Off day done", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Session ", sk.count, " logged"))), skNotes.length ? skNotes.map((n, i) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + n.kind, key: i }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, n.name)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[n.kind]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, n.t)))) : /* @__PURE__ */ React.createElement("p", { className: "note" }, "Logged."), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Three clean sessions in a row on a leveled block moves it up a level. Rough resets the streak; nothing ever moves you down — use Progress to override."), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
+        setSkNotes(null);
+        setView("today");
+      } }, "Done"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setSkNotes(null) }, "Preview next off day"));
+    }
+    const plan = sk.draft || buildSkillPlan(sk);
+    const live = !!sk.draft;
+    const doneCount = Object.keys(plan.done).filter((k) => plan.done[k]).length;
+    const total = SKILL_WARMUP.length + plan.blocks.reduce((n, b) => n + b.items.length, 0) + plan.cooldown.length;
+    const qualityRow = (b) => /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["rough", "okay", "clean"].map((q) => /* @__PURE__ */ React.createElement("button", { key: q, className: "feel-pill" + ((plan.quality[b.key] || "okay") === q ? " on " + (q === "rough" ? "grindy" : q === "okay" ? "on" : "easy") : ""), onClick: () => live && setSkillQuality(b.key, q) }, q === "rough" ? "Rough" : q === "okay" ? "Okay" : "Clean")));
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Off day", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Skill session ", (sk.count || 0) + 1, " \xB7 ≈ 25 min"))), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Low fatigue, high quality. Work through it top to bottom, tick each drill, and tag each block by how it felt. Emphasis rotates on its own — today is ", /* @__PURE__ */ React.createElement("b", { className: "sk-emph" }, plan.blocks.map((b) => b.name).join(" + ")), "."), !live && /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: ensureSkillPlan }, "Start this session"), /* @__PURE__ */ React.createElement("div", { className: "sk-block" }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, "Warm-up", /* @__PURE__ */ React.createElement("span", null, "~5 min")), SKILL_WARMUP.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: "w" + i, k: "w" + i, it, plan, onToggle: toggleSkillDone }))), plan.blocks.map((b) => /* @__PURE__ */ React.createElement("div", { className: "sk-block", key: b.key }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, b.name, /* @__PURE__ */ React.createElement("span", null, b.level ? "level " + b.level + " / " + b.max : "rotating pool")), b.items.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: b.key + i, k: b.key + ":" + i, it, plan, onToggle: toggleSkillDone })), qualityRow(b))), /* @__PURE__ */ React.createElement("div", { className: "sk-block" }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, "Cool-down", /* @__PURE__ */ React.createElement("span", null, "mobility")), plan.cooldown.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: "c" + i, k: "c" + i, it, plan, onToggle: toggleSkillDone }))), live && /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSkill }, "Finish off day \xB7 ", doneCount, "/", total, " done"), live && /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: regenSkillPlan }, "Discard and rebuild"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Leveled blocks (handstand, scaps, wrists) step up after ", SKILL_CLEAN_TO_ADVANCE, " clean sessions. Mobility and core draw fresh from a pool each time."));
+  }
+  function renderSkillCard() {
+    const sk = skillState();
+    return /* @__PURE__ */ React.createElement("div", { className: "pcard skillcard" }, /* @__PURE__ */ React.createElement("div", { className: "pcard-head", onClick: () => setExpanded(expanded === "__skill" ? null : "__skill") }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, "Off-day skills"), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, SKILL_LEVELED.map((k) => SKILL_POOLS[k].name.split(" ")[0] + " L" + ((sk.levels[k] || 0) + 1)).join(" \xB7 "))), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, sk.count || 0, /* @__PURE__ */ React.createElement("span", null, " done"))), expanded === "__skill" && /* @__PURE__ */ React.createElement("div", { className: "override" }, SKILL_LEVELED.map((k) => /* @__PURE__ */ React.createElement("div", { className: "ov-row sk-lvl", key: k }, /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => setSkillLevel(k, (sk.levels[k] || 0) - 1) }, "–"), /* @__PURE__ */ React.createElement("div", { className: "sk-lvl-lab" }, SKILL_POOLS[k].name, /* @__PURE__ */ React.createElement("small", null, "level ", (sk.levels[k] || 0) + 1, " / ", SKILL_POOLS[k].levels.length, " \xB7 clean streak ", sk.streak[k] || 0)), /* @__PURE__ */ React.createElement("button", { className: "step wide", onClick: () => setSkillLevel(k, (sk.levels[k] || 0) + 1) }, "+"))), /* @__PURE__ */ React.createElement("p", { className: "ov-note" }, "Overriding a level resets its clean streak and rebuilds a pending off-day plan.")));
   }
   function renderData() {
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " session", data.log.length === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 8\u201315s. One step per session, so under-leveled movements still climb fast. Miss the bottom of a range twice and it steps you back a rung automatically."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Data", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, data.log.length, " strength \xB7 ", (data.skill || {}).count || 0, " off-day session", ((data.skill || {}).count || 0) === 1 ? "" : "s", " logged"))), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "How it progresses."), " Each movement works a rep or hold range. Tag the set Easy and it jumps to the next exercise; On target and it bridges with a slow-eccentric then paused stage before swapping; Grindy and it consolidates instead of advancing. Strength ranges sit at 5\u20138, squats and hinges at 8\u201312, holds at 8\u201315s. One step per session, so under-leveled movements still climb fast. Miss the bottom of a range twice and it steps you back a rung automatically."), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => {
       setView("editor");
       setEditCat(null);
     } }, "Edit progressions"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportCSV }, "Export log (CSV)"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: exportJSON }, "Export backup (JSON)"), exportText && /* @__PURE__ */ React.createElement("div", { className: "export-box" }, /* @__PURE__ */ React.createElement("div", { className: "eb-label" }, exportText.label, " \u2014 copy if the download didn't trigger"), /* @__PURE__ */ React.createElement("textarea", { readOnly: true, value: exportText.text, onFocus: (e) => e.target.select() })), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Restore from backup."), " Paste a JSON backup to replace everything in the app with it \u2014 the way back after clearing Safari or moving devices."), /* @__PURE__ */ React.createElement("textarea", { className: "import-area", placeholder: "Paste backup JSON here\u2026", value: importText, onChange: (e) => setImportText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: importJSON, disabled: !importText.trim() }, "Restore from this JSON"), importMsg && /* @__PURE__ */ React.createElement("p", { className: "import-msg " + (importMsg.ok ? "ok" : "err") }, importMsg.t), /* @__PURE__ */ React.createElement("div", { className: "how" }, /* @__PURE__ */ React.createElement("b", null, "Google Sheet sync."), " ", data.sheetUrl ? "Connected \u2014 finished sessions append automatically." : "Paste an Apps Script web-app URL to log every finished session straight to a Sheet."), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Apps Script web-app URL", value: syncDraft.url, onChange: (e) => setSyncDraft({ ...syncDraft, url: e.target.value }) }), /* @__PURE__ */ React.createElement("input", { className: "sync-in", placeholder: "Shared secret (optional)", value: syncDraft.token, onChange: (e) => setSyncDraft({ ...syncDraft, token: e.target.value }) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveSync }, "Save sync settings"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => pushToSheet(data.log), disabled: !data.sheetUrl }, "Push all history to Sheet"), !confirmReset ? /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => setConfirmReset(true) }, "Reset all data") : /* @__PURE__ */ React.createElement("div", { className: "reset-confirm" }, /* @__PURE__ */ React.createElement("span", null, "Erase all levels, edits, and history? Can't be undone."), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn danger", onClick: () => {
@@ -983,8 +1153,8 @@ function App() {
       setPhase("log");
     } }, "Erase everything"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setConfirmReset(false) }, "Keep my data"))), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Persists between sessions and lives in this app. Export anytime to mirror it to Sheets."));
   }
-  const views = { today: renderToday, progress: renderProgress, travel: renderTravel, data: renderData, editor: renderEditor };
-  return /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("style", null, CSS), /* @__PURE__ */ React.createElement("div", { className: "scroll" }, views[view]()), /* @__PURE__ */ React.createElement("nav", { className: "nav" }, [["today", "Today"], ["progress", "Progress"], ["travel", "Travel"], ["data", "Data"]].map(([k, lab]) => /* @__PURE__ */ React.createElement("button", { key: k, className: "navbtn" + (view === k || k === "progress" && view === "editor" ? " active" : ""), onClick: () => setView(k) }, lab))));
+  const views = { today: renderToday, progress: renderProgress, skill: renderSkill, data: renderData, editor: renderEditor };
+  return /* @__PURE__ */ React.createElement("div", { className: "app" }, /* @__PURE__ */ React.createElement("style", null, CSS), /* @__PURE__ */ React.createElement("div", { className: "scroll" }, views[view]()), /* @__PURE__ */ React.createElement("nav", { className: "nav" }, [["today", "Today"], ["progress", "Progress"], ["skill", "Off day"], ["data", "Data"]].map(([k, lab]) => /* @__PURE__ */ React.createElement("button", { key: k, className: "navbtn" + (view === k || k === "progress" && view === "editor" ? " active" : ""), onClick: () => setView(k) }, lab))));
 }
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
@@ -1082,18 +1252,6 @@ const CSS = `
 .erow-btns button{background:var(--panel2);color:var(--chalk);border:1px solid var(--line);border-radius:7px;width:30px;height:34px;font-size:13px;cursor:pointer;padding:0}
 .erow-btns button:disabled{opacity:.35}
 .erow-btns .del{color:var(--stall)}
-.seg{display:flex;gap:8px;margin:14px 0 12px}
-.seg.sm{margin:8px 0}
-.seg button{flex:1;font-family:var(--disp);text-transform:uppercase;letter-spacing:.5px;font-size:14px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
-.seg.sm button{font-size:12px;padding:9px}
-.seg button.on{background:var(--panel2);color:var(--brass);border-color:var(--brass)}
-.bar-toggle{display:flex;align-items:center;gap:10px;color:var(--chalk);font-size:14px;padding:6px 2px}
-.bar-toggle input{width:20px;height:20px;accent-color:var(--brass)}
-.travel-out{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--panel)}
-.to-title{font-family:var(--disp);text-transform:uppercase;font-size:20px;letter-spacing:.5px;color:var(--brass)}
-.to-sub{color:var(--muted);font-size:12.5px;margin:2px 0 12px;line-height:1.4}
-.to-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
-.to-item b{font-family:var(--mono);color:var(--chalk);font-size:12.5px;white-space:nowrap}
 .how{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:13px;line-height:1.6;color:var(--chalk);opacity:.92;margin:8px 0 6px}
 .how b{color:var(--brass)}
 .inline-btn{background:none;border:none;color:var(--brass);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;font-family:var(--body)}
@@ -1121,6 +1279,23 @@ const CSS = `
 .tempo-lab{font-family:var(--mono);font-size:11px;color:var(--muted);width:48px;flex:none}
 .tempo-btn{flex:1;font-family:var(--body);font-size:12px;padding:8px 4px;border-radius:8px;border:1px solid var(--line);background:#10141a;color:var(--muted);cursor:pointer}
 .tempo-btn.on{border-color:var(--brass);color:var(--brass)}
+.sk-block{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px;background:var(--panel)}
+.sk-title{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--disp);text-transform:uppercase;font-size:18px;letter-spacing:.5px;color:var(--brass);padding-bottom:4px}
+.sk-title span{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-transform:none;letter-spacing:0}
+.sk-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.sk-item.on .sk-text{opacity:.55;text-decoration:line-through;text-decoration-color:var(--muted)}
+.sk-check{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:#10141a;color:#1a130a;flex:none;font-size:15px;font-weight:700;cursor:pointer}
+.sk-check.on{background:var(--advance);border-color:var(--advance)}
+.sk-text{flex:1;font-size:14px;line-height:1.35}
+.sk-text small{display:block;color:var(--muted);font-family:var(--mono);font-size:11.5px;margin-top:1px}
+.sk-emph{color:var(--brass);font-weight:600}
+.ht-btn.compact{width:auto;margin:0;padding:7px 10px;font-size:12px;letter-spacing:.5px;flex:none;min-width:58px}
+.ht-btn.compact .ht-num{font-size:18px}
+.sk-block .feel{margin-top:8px}
+.sk-lvl{margin-top:8px}
+.sk-lvl-lab{flex:1;font-size:13.5px;line-height:1.3}
+.sk-lvl-lab small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px}
+.skillcard{border-color:#3c4250}
 .primer{border-color:#3c4250;margin:8px 0 6px}
 .primer summary{color:var(--brass)}
 .primer-body{padding-bottom:12px}
