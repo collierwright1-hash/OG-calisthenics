@@ -322,7 +322,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 <script>
 const { useState, useEffect, useRef } = React;
 const DEFAULTS = {
-  verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chest-to-Bar Pull-ups|reps", "Sternum Pull-ups|reps", "High Pull-ups (waist to bar)|reps", "Muscle-up Negatives|reps", "Band Assisted Muscle-ups|reps", "Strict Muscle-ups|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "Band Assisted One Arm Pull-ups|reps", "One Arm Chin-ups|reps", "One Arm Pull-ups|reps"],
+  verticalPull: ["Negative Pull-ups|reps", "Band Assisted Pull-ups (Heavy)|reps", "Band Assisted Pull-ups (Light)|reps", "Pull-ups|reps", "Chest-to-Bar Pull-ups|reps", "Sternum Pull-ups|reps", "High Pull-ups (waist to bar)|reps", "Archer Pull-ups|reps", "Typewriter Pull-ups|reps", "One Arm Pull-up Negatives|reps", "Band Assisted One Arm Pull-ups|reps", "One Arm Chin-ups|reps", "One Arm Pull-ups|reps"],
   hspu: ["Pike Plank Hold|hold", "Pike Push-up Negatives|reps", "Bent Arm Pike Holds|hold", "Pike Push-ups|reps", "Elevated Pike Push-ups|reps", "High Box Pike Push-ups|reps", "Wall HSPU (Chest to Wall)|reps", "Wall HSPU (Stomach to Wall)|reps", "Free HSPU (Partial ROM)|reps", "Free HSPU (Full ROM)|reps", "Ring Handstand Push-ups|reps", "90\xB0 Push-ups|reps", "One Arm HSPU Progression|reps"],
   rows: ["Inverted Rows (high)|reps", "Inverted Rows (mid)|reps", "Inverted Rows (low)|reps", "Ring Rows (feet on floor)|reps", "Ring Rows (feet elevated)|reps", "Wide Rows|reps", "Archer Rows|reps", "Archer Rows (feet elevated)|reps", "One Arm Row Negatives|reps", "One Arm Rows (assisted)|reps", "One Arm Rows|reps"],
   dips: ["Support Hold (bars)|hold", "Bench Dips|reps", "Bar Dip Negatives|reps", "Parallel Bar Dips|reps", "Straight Bar Dips|reps", "Ring Support Hold (RTO)|hold", "Ring Dip Negatives|reps", "Ring Dips|reps", "Ring Dips (RTO at top)|reps", "L-sit Ring Dips|reps", "Bulgarian Ring Dips|reps", "Ring Dips to Straight-Arm Support|reps"],
@@ -355,39 +355,58 @@ const STAGES = [
   { key: "paused", label: "Paused \xB7 1\u20132s at hardest point" }
 ];
 const D = (n, d, s) => ({ n, d, s: s || 0 });
-const SKILL_WARMUP = [D("Wrist circles + wrist push-up rocks", "90s", 90), D("Shoulder dislocates or band pull-aparts", "60s", 60), D("Scap push-ups + scap pulls", "10 each"), D("Cat-cow + thoracic rotations", "45s", 45), D("Chest-to-wall handstand, easy", "20s", 20)];
+const SKILL_WARMUP = [D("Wrist prep — circles, rockers, front & back stretch", "90s", 90), D("Thoracic + shoulder — cat-cow, rotations, dislocates", "60s", 60), D("German hang — decompression", "20–30s", 30), D("Skin-the-cat, controlled", "×2–3"), D("Chin tucks", "×10"), D("Deep-neck-flexor hold", "2 × 15–20s", 20)];
 const SKILL_POOLS = {
-  balance: { name: "Handstand & press", levels: [
-    [D("Chest-to-wall handstand", "3 \xD7 30s", 30), D("Wall hollow-body shifts (shoulders over hands)", "3 \xD7 10"), D("Kick-up to wall, back-to-wall", "8 attempts")],
-    [D("Chest-to-wall handstand", "3 \xD7 45s", 45), D("Heel pulls \u2014 pull heels off the wall, hold", "3 \xD7 5"), D("Kick-ups to wall, catch balance before the wall", "8 attempts")],
-    [D("Toe pulls, back-to-wall", "3 \xD7 5"), D("Chest-to-wall handstand, one heel off", "3 \xD7 20s", 20), D("Freestanding kick-ups", "10 attempts")],
-    [D("Freestanding kick-ups, aim 5s", "10 attempts"), D("Heel pulls into freestanding", "5 attempts"), D("Chest-to-wall handstand", "2 \xD7 45s", 45)],
-    [D("Freestanding holds", "6 \xD7 10s", 10), D("Heel pulls", "3 \xD7 5"), D("Handstand walk toward wall, tiny steps", "3 attempts")],
-    [D("Freestanding holds", "4 \xD7 20s", 20), D("Freestanding shoulder shifts, weight fwd / back", "3 \xD7 10"), D("Kick-up consistency", "10 attempts")],
-    [D("Freestanding holds", "3 \xD7 30s", 30), D("Straddle \u2194 pike shape changes in handstand", "3 \xD7 5"), D("Pike compression lifts, hands beside knees", "3 \xD7 10")],
-    [D("Pike press negatives, feet on box", "3 \xD7 3"), D("Freestanding holds", "3 \xD7 30s", 30), D("Elevated pike press attempts", "5 attempts")],
-    [D("Straddle press negatives, slow to straddle L", "3 \xD7 3"), D("Band-assisted straddle press", "3 \xD7 3"), D("Freestanding holds", "2 \xD7 30s", 30)],
-    [D("Straddle press to handstand", "5 \xD7 1\u20132"), D("Press negatives", "3 \xD7 3"), D("Freestanding holds", "2 \xD7 30s", 30)]
+  handstand: { name: "Handstand", levels: [
+    [D("Chest-to-wall handstand, hollow line", "3 × 30s", 30), D("Kick-up to balance", "6–8 attempts")],
+    [D("Chest-to-wall, one heel off", "3 × 20s", 20), D("Kick-up, catch balance before wall", "8 attempts")],
+    [D("Freestanding kick-ups, aim 3–5s", "10 attempts"), D("Heel pulls into freestanding", "5 attempts")],
+    [D("Freestanding holds", "5 × 10s", 10), D("Shoulder taps in handstand", "3 × 6")],
+    [D("Freestanding holds", "4 × 20s", 20), D("Pike ↔ straddle shape changes", "3 × 5")]
   ] },
-  scaps: { name: "Scapular strength", levels: [
-    [D("Scap pull-ups", "3 \xD7 8"), D("Scap push-ups", "3 \xD7 10"), D("Ring support hold, neutral", "3 \xD7 15s", 15)],
-    [D("Active hang", "3 \xD7 20s", 20), D("Ring support hold, RTO", "3 \xD7 15s", 15), D("Arch hang \u2192 active hang", "3 \xD7 8")],
-    [D("German hang, assisted", "3 \xD7 15s", 15), D("RTO push-up plank", "3 \xD7 20s", 20), D("Scap pull-ups", "3 \xD7 10")],
-    [D("Skin-the-cat", "3 \xD7 3"), D("Ring support hold, RTO", "3 \xD7 30s", 30), D("Ring RTO L-support", "3 \xD7 10s", 10)],
-    [D("German hang", "3 \xD7 20s", 20), D("RTO push-up plank, elbows locked", "3 \xD7 30s", 30), D("Tuck back lever, rings", "3 \xD7 10s", 10)],
-    [D("Skin-the-cat to German hang", "3 \xD7 5"), D("Ring RTO support to L-sit", "3 \xD7 15s", 15), D("Tuck back lever", "3 \xD7 15s", 15)]
+  planche: { name: "Planche", levels: [
+    [D("Floor planche lean, full protraction", "4 × 15s", 15), D("Frog stand", "3 × 20s", 20)],
+    [D("Planche lean, deeper", "4 × 20s", 20), D("Tuck planche balance", "3 × 8s", 8)],
+    [D("Advanced tuck planche balance", "4 × 8s", 8), D("Planche lean, straight-arm hold", "3 × 20s", 20)]
   ] },
-  wrists: { name: "Wrists", levels: [
-    [D("Wrist push-up series \u2014 palms, fists, backs", "2 \xD7 8 each"), D("Fingertip plank", "3 \xD7 15s", 15), D("Wrist extension holds, fingers back", "3 \xD7 20s", 20)],
-    [D("Wrist push-up series", "3 \xD7 10 each"), D("Fingertip push-up holds, top", "3 \xD7 15s", 15), D("Back-of-hand plank", "3 \xD7 15s", 15)],
-    [D("First-knuckle push-ups", "3 \xD7 8"), D("Fingertip push-ups, partial", "3 \xD7 5"), D("Back-of-hand plank", "3 \xD7 20s", 20)],
-    [D("Fingertip push-ups", "3 \xD7 8"), D("Palm-up wrist push-ups", "3 \xD7 8"), D("Planche-lean wrist loading", "3 \xD7 20s", 20)]
+  frontLever: { name: "Front Lever", levels: [
+    [D("Front lever scapular pulls, straight arms", "3 × 6"), D("Tuck FL hold, clean hollow line", "4 × 10s", 10)],
+    [D("Advanced tuck FL hold", "4 × 8s", 8), D("Scapular pulls, slow", "3 × 6")],
+    [D("Straddle FL hold, position", "4 × 6s", 6), D("Ice-cream makers, tuck", "3 × 4")]
   ] },
-  mobility: { name: "Mobility", pool: [D("Bridge", "3 \xD7 20s", 20), D("Pancake, active", "2 \xD7 60s", 60), D("Pike compression lifts", "3 \xD7 10"), D("Shoulder extension, hands on table behind", "2 \xD7 45s", 45), D("Deep squat, heels down", "2 \xD7 60s", 60), D("Couch stretch", "60s / side", 60), D("Jefferson curl", "2 \xD7 8"), D("Thoracic windmill", "2 \xD7 8 / side"), D("Straddle sit + compression", "2 \xD7 45s", 45), D("Active pike stretch", "2 \xD7 45s", 45)] },
-  core: { name: "Core", pool: [D("Hollow body hold", "3 \xD7 30s", 30), D("Arch hold", "3 \xD7 30s", 30), D("Ab wheel", "3 \xD7 10"), D("Side plank", "2 \xD7 30s / side", 30), D("Hanging leg raises", "3 \xD7 8"), D("Dragon flag negatives", "3 \xD7 5"), D("L-sit compression lifts", "3 \xD7 8"), D("Hollow rocks", "3 \xD7 20")] }
+  pistol: { name: "Pistol", levels: [
+    [D("Slow pistol descents (box if needed)", "3 × 5/side"), D("Knee-to-wall dorsiflexion", "3 × 8/side"), D("Short-foot / arch holds", "3 × 20s", 20)],
+    [D("Pistol descents, controlled", "3 × 5/side"), D("Bottom-position balance hold", "3 × 15s", 15), D("Single-leg balance, arch active", "30s/side", 30)],
+    [D("Full pistols, slow", "3 × 5/side"), D("Weighted dorsiflexion rock", "3 × 10/side"), D("Lateral step-down (glute med)", "3 × 8/side")]
+  ] },
+  hollow: { name: "Hollow", levels: [
+    [D("Tuck hollow hold", "2 × 20–40s", 30)],
+    [D("Hollow hold, legs extended", "2 × 20–40s", 30)],
+    [D("Hollow hold, arms overhead", "2 × 20–40s", 30)],
+    [D("Hollow rocks", "2 × 10–20")]
+  ] },
+  backext: { name: "Back Extension", levels: [
+    [D("Prone superman hold", "2 × 20–30s", 25)],
+    [D("Prone back extension, controlled", "2 × 10–15")],
+    [D("Arch-up hold, arms overhead", "2 × 20–30s", 25)],
+    [D("Reverse hyper, hips at edge", "2 × 10–15")]
+  ] },
+  compression: { name: "Compression", levels: [
+    [D("Seated pike compression lifts, heels off floor", "3 × 8–12")],
+    [D("Seated pike active hold", "3 × 5–10s", 8)],
+    [D("Straddle compression lifts", "3 × 8–12")],
+    [D("Straddle active hold", "3 × 5–10s", 8)]
+  ] }
 };
-const SKILL_ROTATION = [["balance", "wrists"], ["scaps", "mobility"], ["balance", "core"], ["wrists", "scaps"], ["balance", "mobility"], ["scaps", "core"]];
-const SKILL_LEVELED = ["balance", "scaps", "wrists"];
+const SKILL_SCAP_PAIRS = [
+  { pro: D("Scapular push-ups (serratus)", "2 × 10–15"), ret: D("Band pull-aparts (mid trap)", "2 × 12–15") },
+  { pro: D("Wall slides (upward rotation)", "2 × 10–12"), ret: D("Face pulls + external rotation", "2 × 12–15") },
+  { pro: D("Prone Y-raises (lower trap)", "2 × 10–12"), ret: D("Scapular pull-ups (depression)", "2 × 8–12") }
+];
+const SKILL_ANCHORS = ["handstand", "planche"];
+const SKILL_ROTATING = ["frontLever", "pistol"];
+const SKILL_CORE = ["hollow", "backext"];
+const SKILL_LEVELED = ["handstand", "planche", "frontLever", "pistol", "hollow", "backext", "compression"];
 const SKILL_CLEAN_TO_ADVANCE = 3;
 function mulberry32(a) {
   return function() {
@@ -407,43 +426,44 @@ function pickN(rnd, arr, n) {
   return a.slice(0, n);
 }
 function freshSkill() {
-  return { count: 0, levels: { balance: 0, scaps: 0, wrists: 0 }, streak: { balance: 0, scaps: 0, wrists: 0 }, log: [], draft: null };
+  const z = {}; for (const k of SKILL_LEVELED) z[k] = 0;
+  return { count: 0, levels: { ...z }, streak: { ...z }, log: [], draft: null };
 }
 function buildSkillPlan(skill) {
   const count = skill.count || 0;
-  const emph = SKILL_ROTATION[count % SKILL_ROTATION.length];
-  const rnd = mulberry32(count * 7919 + 17);
-  const blocks = emph.map((key) => {
+  const levels = skill.levels || {};
+  const lvlItems = (key) => {
     const p = SKILL_POOLS[key];
-    if (p.levels) {
-      const lvl = Math.max(0, Math.min(p.levels.length - 1, (skill.levels || {})[key] || 0));
-      return { key, name: p.name, level: lvl + 1, max: p.levels.length, items: p.levels[lvl] };
-    }
-    return { key, name: p.name, level: null, max: null, items: pickN(rnd, p.pool, 3) };
-  });
-  const used = new Set(blocks.flatMap((b) => b.items.map((x) => x.n)));
-  const cooldown = pickN(rnd, SKILL_POOLS.mobility.pool.filter((x) => !used.has(x.n)), 2);
-  return { count, emph, blocks, cooldown, done: {}, quality: {}, startedAt: Date.now() };
+    const lvl = Math.max(0, Math.min(p.levels.length - 1, levels[key] || 0));
+    return { key, name: p.name, level: lvl + 1, max: p.levels.length, items: p.levels[lvl] };
+  };
+  const rotating = SKILL_ROTATING[count % SKILL_ROTATING.length];
+  const nextRotating = SKILL_ROTATING[(count + 1) % SKILL_ROTATING.length];
+  const skillBlocks = [...SKILL_ANCHORS.map(lvlItems), lvlItems(rotating)];
+  const coreBlocks = SKILL_CORE.map(lvlItems);
+  const compression = lvlItems("compression");
+  return { count, rotating, nextRotating, skillBlocks, scap: SKILL_SCAP_PAIRS, coreBlocks, compression, done: {}, quality: {}, startedAt: Date.now() };
 }
 function applySkillResult(skill, plan) {
   const levels = { ...skill.levels }, streak = { ...skill.streak }, notes = [];
-  for (const b of plan.blocks) {
-    if (b.level == null) continue;
+  const leveled = [...plan.skillBlocks, ...plan.coreBlocks, plan.compression];
+  for (const b of leveled) {
     const q = plan.quality[b.key] || "okay";
+    const max = SKILL_POOLS[b.key].levels.length;
     if (q === "clean") {
       streak[b.key] = (streak[b.key] || 0) + 1;
-      if (streak[b.key] >= SKILL_CLEAN_TO_ADVANCE && (levels[b.key] || 0) < b.max - 1) {
+      if (streak[b.key] >= SKILL_CLEAN_TO_ADVANCE && (levels[b.key] || 0) < max - 1) {
         levels[b.key] = (levels[b.key] || 0) + 1;
         streak[b.key] = 0;
-        notes.push({ name: b.name, t: "\u2192 level " + (levels[b.key] + 1), kind: "advanced" });
-      } else if ((levels[b.key] || 0) >= b.max - 1) notes.push({ name: b.name, t: "top level \u2014 clean", kind: "maxed" });
+        notes.push({ name: b.name, t: "→ level " + (levels[b.key] + 1), kind: "advanced" });
+      } else if ((levels[b.key] || 0) >= max - 1) notes.push({ name: b.name, t: "top level — clean", kind: "maxed" });
       else notes.push({ name: b.name, t: "clean " + streak[b.key] + "/" + SKILL_CLEAN_TO_ADVANCE, kind: "progressed" });
     } else if (q === "rough") {
       streak[b.key] = 0;
-      notes.push({ name: b.name, t: "rough \u2014 streak reset", kind: "held" });
+      notes.push({ name: b.name, t: "rough — streak reset", kind: "held" });
     } else notes.push({ name: b.name, t: "steady", kind: "held" });
   }
-  const entry = { id: Date.now(), date: (/* @__PURE__ */ new Date()).toISOString(), emph: plan.emph, quality: plan.quality, done: Object.keys(plan.done).filter((k) => plan.done[k]).length };
+  const entry = { id: Date.now(), date: (new Date()).toISOString(), rotating: plan.rotating, quality: plan.quality, done: Object.keys(plan.done).filter((k) => plan.done[k]).length };
   return { skill: { ...skill, count: (skill.count || 0) + 1, levels, streak, log: [...skill.log || [], entry], draft: null }, notes };
 }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -584,7 +604,7 @@ function freshState() {
     const rung = ladders[cat][levels[cat] - 1];
     movements[cat] = { exId: rung.id, target: rangeFor(cat, rung.type).min, stage: 0, holds: 0, misses: 0 };
   }
-  return { version: 4, ladders, movements, log: [], activeDraft: null, skill: freshSkill(), sheetUrl: "", sheetToken: "", createdAt: Date.now() };
+  return { version: 5, ladders, movements, log: [], activeDraft: null, skill: freshSkill(), sheetUrl: "", sheetToken: "", createdAt: Date.now() };
 }
 function freshRung(cat, i) {
   const rung = DEFAULTS[cat][i];
@@ -667,11 +687,33 @@ function migrateV3(s) {
   }
   return { ...s, version: 3, ladders, movements, activeDraft: draft };
 }
+function migrateV5(s) {
+  const vp = DEFAULTS.verticalPull.map((str) => { const p = str.split("|"); return { id: uid(), name: p[0], type: p[1] }; });
+  const oldL = (s.ladders && s.ladders.verticalPull) || [];
+  const oldMv = (s.movements && s.movements.verticalPull) || {};
+  const oldIdx = Math.max(0, idxOf(oldL, oldMv.exId));
+  const oldRung = oldL[oldIdx];
+  let wantName = oldRung ? oldRung.name : null;
+  if (wantName && /Muscle-up/.test(wantName)) wantName = "High Pull-ups (waist to bar)";
+  let i = vp.findIndex((r) => r.name === wantName);
+  if (i < 0) i = Math.min(oldIdx, vp.length - 1);
+  const rung = vp[i];
+  const same = oldRung && oldRung.name === rung.name && oldRung.type === rung.type;
+  const ladders = { ...s.ladders, verticalPull: vp };
+  const movements = { ...s.movements, verticalPull: same ? { ...oldMv, exId: rung.id } : { exId: rung.id, target: rangeFor("verticalPull", rung.type).min, stage: 0, holds: 0, misses: 0 } };
+  let draft = s.activeDraft ? { ...s.activeDraft, sets: { ...s.activeDraft.sets }, feel: { ...(s.activeDraft.feel || {}) } } : null;
+  if (draft) draft.sets.verticalPull = Array(SETS).fill(movements.verticalPull.target);
+  const oldSkill = s.skill || {};
+  const z = {}; for (const k of SKILL_LEVELED) z[k] = 0;
+  const skill = { count: oldSkill.count || 0, levels: { ...z }, streak: { ...z }, log: oldSkill.log || [], draft: null };
+  return { ...s, version: 5, ladders, movements, activeDraft: draft, skill };
+}
 function migrate(s) {
   if (!s) return freshState();
   if (!(s.version >= 2 && s.ladders)) s = migrateV2(s);
   if ((s.version || 0) < 3) s = migrateV3(s);
   if ((s.version || 0) < 4) s = migrateV4(s);
+  if ((s.version || 0) < 5) s = migrateV5(s);
   return s;
 }
 function migrateV2(s) {
@@ -1045,7 +1087,7 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { className: "card" + (lead ? " lead" : "") }, /* @__PURE__ */ React.createElement("div", { className: "card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mv-name" }, META[cat].name, lead && /* @__PURE__ */ React.createElement("span", { className: "tag" }, "fresh")), /* @__PURE__ */ React.createElement("div", { className: "ex-name" }, rung.name), stageLabel && /* @__PURE__ */ React.createElement("div", { className: "stage-cue" }, stageLabel)), /* @__PURE__ */ React.createElement("div", { className: "lvl" }, rung.type === "hold" ? "HOLD" : "L" + (rungOf(data, cat).index + 1))), /* @__PURE__ */ React.createElement(Ladder, { data, cat }), /* @__PURE__ */ React.createElement("div", { className: "target" }, "target ", /* @__PURE__ */ React.createElement("b", null, draft[cat].length, "\xD7", tgt, rung.type === "hold" ? "s" : ""), last && /* @__PURE__ */ React.createElement("span", { className: "rng" }, "last ", last.sets.join("\xB7"), last.exType === "hold" ? "s" : "")), /* @__PURE__ */ React.createElement("div", { className: "sets" }, draft[cat].map((v, i) => /* @__PURE__ */ React.createElement("div", { className: "setrow", key: i }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Set ", i + 1), /* @__PURE__ */ React.createElement(Stepper, { value: v, unit: rung.type === "hold" ? "sec" : "reps", onChange: (nv) => setSet(cat, i, nv) }))), loadable && /* @__PURE__ */ React.createElement("div", { className: "setrow load", key: "load" }, /* @__PURE__ */ React.createElement("span", { className: "setlab" }, "Load"), /* @__PURE__ */ React.createElement(Stepper, { value: load[cat] || 0, unit: "lb", step: 5, onChange: (nv) => setLoadFor(cat, nv) }))), rung.type === "hold" && /* @__PURE__ */ React.createElement(HoldTimer, { seconds: tgt }), /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["easy", "on", "grindy"].map((k) => /* @__PURE__ */ React.createElement("button", { key: k, className: "feel-pill" + (f === k ? " on " + k : ""), onClick: () => setFeelFor(cat, k) }, k === "easy" ? "Easy" : k === "on" ? "On target" : "Grindy"))));
   }
   function renderPrimer() {
-    return /* @__PURE__ */ React.createElement("details", { className: "finisher primer" }, /* @__PURE__ */ React.createElement("summary", null, "Handstand primer ", /* @__PURE__ */ React.createElement("em", null, "\u2014 2 min, fresh \xB7 balance practice proper lives on Off day")), /* @__PURE__ */ React.createElement("div", { className: "primer-body" }, /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Wrist circles \u2014 30s"), /* @__PURE__ */ React.createElement("li", null, "Chest-to-wall handstand, hollow line \u2014 30s"), /* @__PURE__ */ React.createElement("li", null, "Kick-ups to balance \u2014 3\u20135 attempts, stop fresh")), /* @__PURE__ */ React.createElement(HoldTimer, { seconds: 30 })));
+    return React.createElement("details", { className: "finisher primer" }, React.createElement("summary", null, "Warm-up + scap activation ", React.createElement("em", null, "— ~3 min, fresh · primes serratus & lower trap before loading")), React.createElement("div", { className: "primer-body" }, React.createElement("ul", null, React.createElement("li", null, "Wrist circles — 30s"), React.createElement("li", null, "Scap activation — scap push-ups ×8, band pull-aparts ×12, prone Y-raises ×8 (light)"), React.createElement("li", null, "Chest-to-wall handstand, hollow line — 30s"), React.createElement("li", null, "Kick-ups to balance — 3–5 attempts, stop fresh")), React.createElement(HoldTimer, { seconds: 30 })));
   }
   function renderToday() {
     if (phase === "done") return renderSummary();
@@ -1115,24 +1157,36 @@ function App() {
     const sk = skillState();
     const max = SKILL_POOLS[key].levels.length;
     const v = Math.max(0, Math.min(max - 1, lvl));
-    const draft = sk.draft && sk.draft.emph.includes(key) ? null : sk.draft;
-    persist({ ...data, skill: { ...sk, levels: { ...sk.levels, [key]: v }, streak: { ...sk.streak, [key]: 0 }, draft } });
+    persist({ ...data, skill: { ...sk, levels: { ...sk.levels, [key]: v }, streak: { ...sk.streak, [key]: 0 }, draft: null } });
   }
   function renderSkill() {
     const sk = skillState();
     if (skNotes) {
       const label = { advanced: "Leveled up", progressed: "Streak", held: "Hold", maxed: "Top level" };
-      return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Off day done", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Session ", sk.count, " logged"))), skNotes.length ? skNotes.map((n, i) => /* @__PURE__ */ React.createElement("div", { className: "sumrow " + n.kind, key: i }, /* @__PURE__ */ React.createElement("div", { className: "sum-l" }, /* @__PURE__ */ React.createElement("div", { className: "sum-name" }, n.name)), /* @__PURE__ */ React.createElement("div", { className: "sum-r" }, /* @__PURE__ */ React.createElement("span", { className: "sum-flag" }, label[n.kind]), /* @__PURE__ */ React.createElement("span", { className: "sum-next" }, n.t)))) : /* @__PURE__ */ React.createElement("p", { className: "note" }, "Logged."), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Three clean sessions in a row on a leveled block moves it up a level. Rough resets the streak; nothing ever moves you down — use Progress to override."), /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: () => {
-        setSkNotes(null);
-        setView("today");
-      } }, "Done"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: () => setSkNotes(null) }, "Preview next off day"));
+      return React.createElement("div", { className: "screen" }, React.createElement("div", { className: "hd" }, React.createElement("h1", null, "Off day done", React.createElement("span", { className: "hd-sub" }, "Session ", sk.count, " logged"))), skNotes.length ? skNotes.map((n, i) => React.createElement("div", { className: "sumrow " + n.kind, key: i }, React.createElement("div", { className: "sum-l" }, React.createElement("div", { className: "sum-name" }, n.name)), React.createElement("div", { className: "sum-r" }, React.createElement("span", { className: "sum-flag" }, label[n.kind]), React.createElement("span", { className: "sum-next" }, n.t)))) : React.createElement("p", { className: "note" }, "Logged."), React.createElement("p", { className: "note" }, "Three clean sessions in a row on a leveled block moves it up a level. Rough resets the streak; nothing ever moves you down — use Progress to override."), React.createElement("button", { className: "btn primary", onClick: () => { setSkNotes(null); setView("today"); } }, "Done"), React.createElement("button", { className: "btn ghost", onClick: () => setSkNotes(null) }, "Preview next off day"));
     }
     const plan = sk.draft || buildSkillPlan(sk);
     const live = !!sk.draft;
     const doneCount = Object.keys(plan.done).filter((k) => plan.done[k]).length;
-    const total = SKILL_WARMUP.length + plan.blocks.reduce((n, b) => n + b.items.length, 0) + plan.cooldown.length;
-    const qualityRow = (b) => /* @__PURE__ */ React.createElement("div", { className: "feel" }, ["rough", "okay", "clean"].map((q) => /* @__PURE__ */ React.createElement("button", { key: q, className: "feel-pill" + ((plan.quality[b.key] || "okay") === q ? " on " + (q === "rough" ? "grindy" : q === "okay" ? "on" : "easy") : ""), onClick: () => live && setSkillQuality(b.key, q) }, q === "rough" ? "Rough" : q === "okay" ? "Okay" : "Clean")));
-    return /* @__PURE__ */ React.createElement("div", { className: "screen" }, /* @__PURE__ */ React.createElement("div", { className: "hd" }, /* @__PURE__ */ React.createElement("h1", null, "Off day", /* @__PURE__ */ React.createElement("span", { className: "hd-sub" }, "Skill session ", (sk.count || 0) + 1, " \xB7 ≈ 25 min"))), /* @__PURE__ */ React.createElement("p", { className: "note" }, "Low fatigue, high quality. Work through it top to bottom, tick each drill, and tag each block by how it felt. Emphasis rotates on its own — today is ", /* @__PURE__ */ React.createElement("b", { className: "sk-emph" }, plan.blocks.map((b) => b.name).join(" + ")), "."), !live && /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: ensureSkillPlan }, "Start this session"), /* @__PURE__ */ React.createElement("div", { className: "sk-block" }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, "Warm-up", /* @__PURE__ */ React.createElement("span", null, "~5 min")), SKILL_WARMUP.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: "w" + i, k: "w" + i, it, plan, onToggle: toggleSkillDone }))), plan.blocks.map((b) => /* @__PURE__ */ React.createElement("div", { className: "sk-block", key: b.key }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, b.name, /* @__PURE__ */ React.createElement("span", null, b.level ? "level " + b.level + " / " + b.max : "rotating pool")), b.items.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: b.key + i, k: b.key + ":" + i, it, plan, onToggle: toggleSkillDone })), qualityRow(b))), /* @__PURE__ */ React.createElement("div", { className: "sk-block" }, /* @__PURE__ */ React.createElement("div", { className: "sk-title" }, "Cool-down", /* @__PURE__ */ React.createElement("span", null, "mobility")), plan.cooldown.map((it, i) => /* @__PURE__ */ React.createElement(SkillItem, { key: "c" + i, k: "c" + i, it, plan, onToggle: toggleSkillDone }))), live && /* @__PURE__ */ React.createElement("button", { className: "btn primary", onClick: finishSkill }, "Finish off day \xB7 ", doneCount, "/", total, " done"), live && /* @__PURE__ */ React.createElement("button", { className: "btn ghost", onClick: regenSkillPlan }, "Discard and rebuild"), /* @__PURE__ */ React.createElement("p", { className: "fineprint" }, "Leveled blocks (handstand, scaps, wrists) step up after ", SKILL_CLEAN_TO_ADVANCE, " clean sessions. Mobility and core draw fresh from a pool each time."));
+    const total = SKILL_WARMUP.length + plan.skillBlocks.reduce((n, b) => n + b.items.length, 0) + plan.scap.length * 2 + plan.coreBlocks.reduce((n, b) => n + b.items.length, 0) + plan.compression.items.length;
+    const qualityRow = (b) => React.createElement("div", { className: "feel" }, ["rough", "okay", "clean"].map((q) => React.createElement("button", { key: q, className: "feel-pill" + ((plan.quality[b.key] || "okay") === q ? " on " + (q === "rough" ? "grindy" : q === "okay" ? "on" : "easy") : ""), onClick: () => live && setSkillQuality(b.key, q) }, q === "rough" ? "Rough" : q === "okay" ? "Okay" : "Clean")));
+    const levBlock = (b) => React.createElement("div", { className: "sk-block", key: b.key }, React.createElement("div", { className: "sk-title" }, b.name, React.createElement("span", null, "level " + b.level + " / " + b.max)), b.items.map((it, i) => React.createElement(SkillItem, { key: b.key + i, k: b.key + ":" + i, it, plan, onToggle: toggleSkillDone })), qualityRow(b));
+    return React.createElement("div", { className: "screen" },
+      React.createElement("div", { className: "hd" }, React.createElement("h1", null, "Off day", React.createElement("span", { className: "hd-sub" }, "Session ", (sk.count || 0) + 1, " · ≈ 25 min"))),
+      React.createElement("p", { className: "note" }, "Fixed template — only the third skill rotates. Low fatigue, high quality: work top to bottom, tick each drill, and tag each leveled block by how it felt."),
+      !live && React.createElement("button", { className: "btn primary", onClick: ensureSkillPlan }, "Start this session"),
+      React.createElement("div", { className: "sk-block" }, React.createElement("div", { className: "sk-title" }, "Warm-up + mobility", React.createElement("span", null, "~5 min")), SKILL_WARMUP.map((it, i) => React.createElement(SkillItem, { key: "w" + i, k: "w" + i, it, plan, onToggle: toggleSkillDone }))),
+      React.createElement("p", { className: "note" }, React.createElement("b", null, "Skill"), " — handstand + planche + ", React.createElement("b", null, SKILL_POOLS[plan.rotating].name), " · next off day: ", SKILL_POOLS[plan.nextRotating].name),
+      plan.skillBlocks.map(levBlock),
+      React.createElement("div", { className: "sk-block" }, React.createElement("div", { className: "sk-title" }, "Scapular prehab", React.createElement("span", null, "3 supersets × 2, every off day")), plan.scap.map((pr, i) => React.createElement("div", { className: "sk-superset", key: "s" + i }, React.createElement("div", { className: "pair-tag" }, "Superset ", String.fromCharCode(65 + i), " · protraction ↔ retraction"), React.createElement(SkillItem, { k: "s" + i + ":pro", it: pr.pro, plan, onToggle: toggleSkillDone }), React.createElement(SkillItem, { k: "s" + i + ":ret", it: pr.ret, plan, onToggle: toggleSkillDone })))),
+      React.createElement("p", { className: "note" }, React.createElement("b", null, "Core"), " — both every off day"),
+      plan.coreBlocks.map(levBlock),
+      React.createElement("p", { className: "note" }, React.createElement("b", null, "Compression"), " — skill, capped below Manna"),
+      levBlock(plan.compression),
+      live && React.createElement("button", { className: "btn primary", onClick: finishSkill }, "Finish off day · ", doneCount, "/", total, " done"),
+      live && React.createElement("button", { className: "btn ghost", onClick: regenSkillPlan }, "Discard and rebuild"),
+      React.createElement("p", { className: "fineprint" }, "Leveled blocks (the 3 skills, hollow, back extension, compression) step up after ", SKILL_CLEAN_TO_ADVANCE, " clean sessions. Scapular supersets and warm-up are fixed — self-progress those inside each movement.")
+    );
   }
   function renderSkillCard() {
     const sk = skillState();
@@ -1299,6 +1353,8 @@ const CSS = `
 .primer{border-color:#3c4250;margin:8px 0 6px}
 .primer summary{color:var(--brass)}
 .primer-body{padding-bottom:12px}
+.sk-superset{margin:8px 0 4px}
+.sk-lead{color:var(--brass)}
 @media (prefers-reduced-motion:reduce){.rung.now{box-shadow:none}}
 `;
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
