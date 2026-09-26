@@ -727,13 +727,36 @@ function migrateV2(s) {
   return { version: 2, ladders, movements, log: s.log || [], activeDraft: null, sheetUrl: s.sheetUrl || "", sheetToken: s.sheetToken || "", createdAt: s.createdAt || Date.now() };
 }
 let _audio = null;
+let _audioStale = false;
+function markAudioStale() {
+  if (document.visibilityState === "hidden") _audioStale = true;
+}
+try {
+  document.addEventListener("visibilitychange", markAudioStale);
+  window.addEventListener("pagehide", () => {
+    _audioStale = true;
+  });
+} catch {
+}
 function unlockAudio() {
   try {
-    if (!_audio) {
-      const C = window.AudioContext || window.webkitAudioContext;
-      _audio = new C();
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    if (_audio && (_audioStale || _audio.state === "closed" || _audio.state === "interrupted")) {
+      try {
+        _audio.close();
+      } catch {
+      }
+      _audio = null;
     }
-    if (_audio.state === "suspended") _audio.resume();
+    _audioStale = false;
+    if (!_audio) _audio = new C();
+    if (_audio.state !== "running") _audio.resume();
+    const buf = _audio.createBuffer(1, 1, 22050);
+    const src = _audio.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audio.destination);
+    src.start(0);
   } catch {
   }
 }
@@ -741,7 +764,7 @@ function beep(freq = 880, dur = 0.45) {
   try {
     const c = _audio;
     if (!c) return;
-    if (c.state === "suspended") c.resume();
+    if (c.state !== "running") c.resume();
     const o = c.createOscillator();
     const g = c.createGain();
     o.connect(g);
